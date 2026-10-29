@@ -1,50 +1,22 @@
-import React, { useCallback, useState } from "react";
+import React from "react";
 import { ImageBackground, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
 import ProductCard from "../components/ProductCard";
+import { useStore } from "../context/StoreContext";
 import { copy, theme } from "../theme";
 
-const products = [
-  {
-    id: "ultraboost-runner",
-    name: copy.firstProduct,
-    description: copy.firstProductDescription,
-    price: copy.firstProductPrice,
-    image: require("../assets/image-container.png"),
-  },
-  {
-    id: "air-zoom-pegasus",
-    name: copy.secondProduct,
-    description: copy.secondProductDescription,
-    price: copy.secondProductPrice,
-    image: require("../assets/image-container1.png"),
-  },
-];
-
 export default function Home({ navigation }) {
-  const [favoriteIds, setFavoriteIds] = useState([]);
-  const [collectionNotice, setCollectionNotice] = useState("");
-
-  const toggleFavorite = useCallback((productId) => {
-    setFavoriteIds((currentIds) => currentIds.includes(productId)
-      ? currentIds.filter((id) => id !== productId)
-      : [...currentIds, productId]);
-  }, []);
-
-  const showCollectionNotice = useCallback(() => {
-    setCollectionNotice(copy.collectionMessage);
-  }, []);
+  const { favoriteIds, products, toggleFavorite } = useStore();
+  const featuredProducts = products.filter((product) => product.featured);
+  const openProduct = (product) => navigation.navigate("Produto", { productId: product.id });
 
   return (
     <ScrollView contentContainerStyle={styles.content} style={styles.screen}>
       <View style={styles.hero}>
         <ImageBackground source={require("../assets/hero-banner.png")} style={styles.heroImage}>
           <View style={styles.heroOverlay}>
-            <StoreHeader 
-              onBagPress={() => navigation.navigate("Carrinho")} 
-              onAccountPress={() => navigation.navigate("Login")} 
-            />
+            <StoreHeader />
             <View style={styles.chipRow}>
               <View style={styles.dropChip}><Text style={styles.chipText}>{copy.newDrop}</Text></View>
               <View style={styles.shortChip}><Text style={styles.chipText}>{copy.new}</Text></View>
@@ -52,8 +24,8 @@ export default function Home({ navigation }) {
             </View>
             <View style={styles.heroCopy}>
               <Text style={styles.heroTitle}>{copy.heroTitle}</Text>
-              <Text style={styles.heroDescription}>{collectionNotice || copy.heroBody}</Text>
-              <Pressable accessibilityLabel={copy.collectionLabel} accessibilityRole="button" onPress={showCollectionNotice} style={styles.collectionButton}>
+              <Text style={styles.heroDescription}>{copy.heroBody}</Text>
+              <Pressable accessibilityLabel={copy.collectionLabel} accessibilityRole="button" onPress={() => navigation.navigate("Lancamentos")} style={styles.collectionButton}>
                 <Text style={styles.collectionButtonText}>{copy.collectionAction}</Text>
               </Pressable>
             </View>
@@ -63,21 +35,21 @@ export default function Home({ navigation }) {
       <View style={styles.featuredSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{copy.featuredTitle}</Text>
-          
-          {/* Ação ajustada para redirecionar para a tela de Lançamentos */}
+
           <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Lancamentos")}>
             <Text style={styles.seeAll}>{copy.seeAll}</Text>
           </Pressable>
 
         </View>
         <View style={styles.productList}>
-          {products.map((product) => (
+          {featuredProducts.map((product) => (
             <ProductCard
               isFavorite={favoriteIds.includes(product.id)}
               key={product.id}
-              onAddToBag={showCollectionNotice}
+              onAddToBag={() => openProduct(product)}
+              onPress={() => openProduct(product)}
               onToggleFavorite={() => toggleFavorite(product.id)}
-              product={product}
+              product={{ ...product, image: product.featuredImage || product.image }}
             />
           ))}
         </View>

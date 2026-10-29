@@ -1,42 +1,23 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ArrowRightIcon from "../assets/arrow-right.svg";
 import CartItem from "../components/CartItem";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
+import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { copy, theme } from "../theme";
-
-const initialCartItems = [
-  { id: "air-zoom-pegasus", image: require("../assets/Product-Image5.png"), name: copy.cartFirstItemName, price: copy.cartFirstItemPrice, quantity: theme.cart.quantity.default, size: copy.cartFirstItemSize, unitPrice: theme.cart.price.firstItem },
-  { id: "ultra-boost-running", image: require("../assets/Product-Image10.png"), name: copy.cartSecondItemName, price: copy.cartSecondItemPrice, quantity: theme.cart.quantity.default, size: copy.cartSecondItemSize, unitPrice: theme.cart.price.secondItem },
-];
-
-function formatPrice(value) {
-  return value.toLocaleString(copy.cartLocale, theme.cart.currencyFormat);
-}
+import { formatPrice } from "../utils/format";
+import { goTo } from "../utils/navigation";
 
 export default function Carrinho({ navigation }) {
   const insets = useSafeAreaInsets();
-  const [cartItems, setCartItems] = useState(initialCartItems);
+  const { user } = useAuth();
+  const { changeQuantity, itemCount, items: cartItems, removeItem, subtotal } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
-
-  const subtotal = useMemo(
-    () => cartItems.reduce((total, item) => total + item.unitPrice * item.quantity, theme.cart.price.empty),
-    [cartItems],
-  );
-
-  const changeQuantity = useCallback((itemId, change) => {
-    setCartItems((currentItems) => currentItems.map((item) => item.id === itemId
-      ? { ...item, quantity: Math.max(theme.cart.quantity.minimum, item.quantity + change) }
-      : item));
-  }, []);
-
-  const removeItem = useCallback((itemId) => {
-    setCartItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
-  }, []);
 
   const applyCoupon = useCallback(() => {
     const normalizedCoupon = couponCode.trim();
@@ -44,30 +25,41 @@ export default function Carrinho({ navigation }) {
     setStatusMessage(normalizedCoupon ? copy.cartCouponApplied : copy.cartCouponRequired);
   }, [couponCode]);
 
+  // Carrinho é público; o login só é exigido aqui, ao finalizar a compra.
   const checkout = useCallback(() => {
-    setStatusMessage(cartItems.length ? copy.cartCheckoutFeedback : copy.cartEmptyFeedback);
-  }, [cartItems.length]);
+    if (!cartItems.length) {
+      setAppliedCoupon("");
+      setStatusMessage(copy.cartEmptyFeedback);
+      return;
+    }
+    if (user) {
+      navigation.navigate("Checkout");
+    } else {
+      navigation.navigate("Login", { redirectTo: "Checkout" });
+    }
+  }, [cartItems.length, navigation, user]);
 
   return (
     <View style={styles.screen}>
       <View style={[styles.headerArea, { paddingTop: Math.max(insets.top, StatusBar.currentHeight || theme.cart.size.statusBarFallback) }]}>
-        <StoreHeader onAccountPress={() => navigation.navigate("Login")} onBagPress={() => setStatusMessage(copy.cartBagFeedback)} />
+        <StoreHeader />
       </View>
       <ScrollView bounces={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" style={styles.scrollView}>
         <View style={styles.cartContent}>
           <Text style={styles.title}>{copy.cartTitle}</Text>
-          <Text style={styles.subtitle}>{copy.cartItemCount(cartItems.length)}</Text>
+          <Text style={styles.subtitle}>{copy.cartItemCount(itemCount)}</Text>
 
           <View style={styles.itemList}>
             {cartItems.map((item) => (
               <CartItem
                 item={item}
-                key={item.id}
-                onDecrement={() => changeQuantity(item.id, theme.cart.quantity.decrement)}
-                onIncrement={() => changeQuantity(item.id, theme.cart.quantity.increment)}
-                onRemove={() => removeItem(item.id)}
+                key={item.key}
+                onDecrement={() => changeQuantity(item.key, theme.cart.quantity.decrement)}
+                onIncrement={() => changeQuantity(item.key, theme.cart.quantity.increment)}
+                onRemove={() => removeItem(item.key)}
               />
             ))}
+            {cartItems.length ? null : <Text style={styles.emptyText}>{copy.cartEmptyHint}</Text>}
           </View>
 
           <Text style={styles.couponLabel}>{copy.cartCouponLabel}</Text>
@@ -105,8 +97,9 @@ export default function Carrinho({ navigation }) {
           <Pressable accessibilityLabel={copy.cartCheckoutLabel} accessibilityRole="button" onPress={checkout} style={styles.checkoutButton}>
             <Text style={styles.checkoutText}>{copy.cartCheckout}</Text>
           </Pressable>
-          {statusMessage && !appliedCoupon ? <Text accessibilityLiveRegion="polite" style={styles.status}>{statusMessage}</Text> : null}
-          <Pressable accessibilityLabel={copy.cartContinueShoppingLabel} accessibilityRole="button" onPress={() => navigation.navigate("Home")} style={styles.continueShopping}>
+          {statusMessage && !appliedCoupon ? <Text accessibilityLiveRegion="polite" style={[styles.status, styles.statusWarning]}>{statusMessage}</Text> : null}
+          {user ? null : <Text style={styles.loginHint}>{copy.cartLoginHint}</Text>}
+          <Pressable accessibilityLabel={copy.cartContinueShoppingLabel} accessibilityRole="button" onPress={() => goTo(navigation, "Home")} style={styles.continueShopping}>
             <Text style={styles.continueShoppingText}>{copy.cartContinueShopping}</Text>
             <ArrowRightIcon height={theme.cart.size.continueIcon} width={theme.cart.size.continueIcon} />
           </Pressable>
@@ -248,6 +241,21 @@ const styles = StyleSheet.create({
     marginTop: theme.cart.spacing.feedbackTop,
     textAlign: "center",
     ...theme.typography.cartFeedback,
+  },
+  statusWarning: {
+    color: theme.colors.danger,
+  },
+  loginHint: {
+    color: theme.colors.cartMuted,
+    marginTop: theme.cart.spacing.feedbackTop,
+    textAlign: "center",
+    ...theme.typography.cartFeedback,
+  },
+  emptyText: {
+    color: theme.colors.cartMuted,
+    paddingVertical: theme.spacing.xl,
+    textAlign: "center",
+    ...theme.typography.cartSubtitle,
   },
   continueShopping: {
     alignItems: "center",
