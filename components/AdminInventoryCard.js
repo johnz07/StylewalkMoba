@@ -1,6 +1,7 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { copy, theme } from "../theme";
+import { formatPrice } from "../utils/format";
 
 export default function AdminInventoryCard({ item, onDelete, onEdit }) {
   return (
@@ -11,7 +12,7 @@ export default function AdminInventoryCard({ item, onDelete, onEdit }) {
           <Text numberOfLines={1} style={styles.name}>{item.name}</Text>
           <Text numberOfLines={1} style={styles.category}>{item.category}</Text>
         </View>
-        <Text style={styles.price}>{item.price}</Text>
+        <Text style={styles.price}>{formatPrice(item.price)}</Text>
       </View>
       <View style={styles.actions}>
         <Pressable accessibilityLabel={copy.adminEditLabel} accessibilityRole="button" onPress={onEdit} style={styles.editButton}>

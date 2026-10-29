@@ -4,6 +4,7 @@ import MinusIcon from "../assets/minus.svg";
 import PlusIcon from "../assets/plus.svg";
 import TrashIcon from "../assets/trash.svg";
 import { copy, theme } from "../theme";
+import { formatPrice } from "../utils/format";
 
 export default function CartItem({ item, onDecrement, onIncrement, onRemove }) {
   return (
@@ -12,7 +13,7 @@ export default function CartItem({ item, onDecrement, onIncrement, onRemove }) {
       <View style={styles.details}>
         <Text numberOfLines={theme.cart.size.itemTitleLines} style={styles.name}>{item.name}</Text>
         <Text style={styles.size}>{`${copy.cartSizeLabel}: ${item.size}`}</Text>
-        <Text style={styles.price}>{item.price}</Text>
+        <Text style={styles.price}>{formatPrice(item.price)}</Text>
       </View>
       <View style={styles.actions}>
         <Pressable accessibilityLabel={`${copy.cartRemoveItemLabel}: ${item.name}`} accessibilityRole="button" hitSlop={theme.cart.hitSlop.icon} onPress={onRemove} style={styles.removeButton}>

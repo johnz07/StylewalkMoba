@@ -4,18 +4,19 @@ import Svg, { Path } from "react-native-svg";
 import HeartIcon from "../assets/Heart.svg";
 import BagIcon from "../assets/Shopping-bag.svg";
 import { copy, theme } from "../theme";
+import { formatPrice } from "../utils/format";
 
 function CompactBagIcon() {
   return <Svg height={theme.lancamentos.size.bagIcon} viewBox="0 0 20 20" width={theme.lancamentos.size.bagIcon}><Path d="M4 6h12v11H4zM7 8V5a3 3 0 0 1 6 0v3" fill="none" stroke={theme.colors.catalogIcon} strokeWidth={theme.spacing.hairline} /></Svg>;
 }
 
-export default function ProductCard({ isFavorite, onAddToBag, onToggleFavorite, product, variant = "featured" }) {
+export default function ProductCard({ isFavorite, onAddToBag, onPress, onToggleFavorite, product, variant = "featured" }) {
   const isCatalog = variant === "catalog";
   const favoriteLabel = isFavorite ? copy.removeFavoriteLabel : copy.favoriteLabel;
   const category = product.category || copy.running;
 
   return (
-    <View style={[styles.card, isCatalog ? styles.catalogCard : null]}>
+    <Pressable accessibilityLabel={product.name} accessibilityRole="button" onPress={onPress} style={[styles.card, isCatalog ? styles.catalogCard : null]}>
       <View style={[styles.imageFrame, isCatalog ? styles.catalogImageFrame : null]}>
         <Image accessibilityLabel={product.name} source={product.image} style={styles.image} />
         <View style={[styles.tag, isCatalog ? styles.catalogTag : null]}><Text style={styles.tagText}>{category}</Text></View>
@@ -28,13 +29,13 @@ export default function ProductCard({ isFavorite, onAddToBag, onToggleFavorite, 
         <Text numberOfLines={1} style={[styles.title, isCatalog ? styles.catalogTitle : null]}>{product.name}</Text>
         <Text numberOfLines={2} style={[styles.description, isCatalog ? styles.catalogDescription : null]}>{product.description}</Text>
         <View style={[styles.priceRow, isCatalog ? styles.catalogPriceRow : null]}>
-          <Text style={[styles.price, isCatalog ? styles.catalogPrice : null]}>{product.price}</Text>
+          <Text style={[styles.price, isCatalog ? styles.catalogPrice : null]}>{formatPrice(product.price)}</Text>
           <Pressable accessibilityLabel={copy.addToBagLabel} accessibilityRole="button" onPress={onAddToBag} style={[styles.bagButton, isCatalog ? styles.catalogBagButton : null]}>
             {isCatalog ? <CompactBagIcon /> : <BagIcon height={theme.size.icon} width={theme.size.icon} />}
           </Pressable>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

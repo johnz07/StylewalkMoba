@@ -1,19 +1,17 @@
 import React, { useCallback, useState } from "react";
-import { Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BoxIcon from "../assets/box.svg";
 import LogoutIcon from "../assets/log-out.svg";
 import PlusCircleIcon from "../assets/plus-circle.svg";
 import AdminInventoryCard from "../components/AdminInventoryCard";
 import AdminTextField from "../components/AdminTextField";
+import RequireAuth from "../components/RequireAuth";
+import { useAuth } from "../context/AuthContext";
+import { useStore } from "../context/StoreContext";
+import { defaultSizes, placeholderImage } from "../data/products";
 import { copy, theme } from "../theme";
-
-const inventoryImages = [
-  require("../assets/Image-Placeholder.png"),
-  require("../assets/Rectangle.png"),
-  require("../assets/Rectangle1.png"),
-  require("../assets/Rectangle2.png"),
-];
+import { formatPrice, parsePrice } from "../utils/format";
 
 const initialFormValues = {
   name: "",
@@ -23,17 +21,11 @@ const initialFormValues = {
   description: "",
 };
 
-const initialInventoryItems = [
-  { id: "ultraboost-runner", name: copy.adminUltraBoost, category: copy.adminMasculine, imageUrl: "", price: copy.adminUltraBoostPrice, description: copy.adminUltraBoostDescription, image: inventoryImages[0] },
-  { id: "air-zoom-pegasus", name: copy.adminAirZoom, category: copy.adminFeminine, imageUrl: "", price: copy.adminAirZoomPrice, description: copy.adminAirZoomDescription, image: inventoryImages[1] },
-  { id: "classic-leather", name: copy.classicLeather, category: copy.unisex, imageUrl: "", price: copy.classicLeatherPrice, description: copy.classicLeatherDescription, image: inventoryImages[2] },
-  { id: "future-rider", name: copy.futureRider, category: copy.feminine, imageUrl: "", price: copy.futureRiderPrice, description: copy.futureRiderDescription, image: inventoryImages[3] },
-];
-
-export default function Admin({ navigation }) {
+function AdminContent({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
+  const { deleteProduct: removeProduct, products: inventoryItems, saveProduct } = useStore();
   const [formValues, setFormValues] = useState(initialFormValues);
-  const [inventoryItems, setInventoryItems] = useState(initialInventoryItems);
   const [editingItemId, setEditingItemId] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -46,47 +38,52 @@ export default function Admin({ navigation }) {
     setFormValues({
       name: item.name,
       category: item.category,
-      imageUrl: item.imageUrl,
-      price: item.price,
+      imageUrl: item.imageUrl || "",
+      price: formatPrice(item.price),
       description: item.description,
     });
     setStatusMessage(copy.adminEditFeedback);
   }, []);
 
   const deleteProduct = useCallback((itemId) => {
-    setInventoryItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
+    removeProduct(itemId);
     if (editingItemId === itemId) {
       setEditingItemId("");
       setFormValues(initialFormValues);
     }
     setStatusMessage(copy.adminDeleteFeedback);
-  }, [editingItemId]);
+  }, [editingItemId, removeProduct]);
 
+  // Salva no catálogo compartilhado: o produto aparece/atualiza na loja na hora.
   const addProduct = useCallback(() => {
     if (!formValues.name.trim()) {
       setStatusMessage(copy.adminNameRequired);
       return;
     }
 
-    const updatedProduct = {
-      id: editingItemId || `${formValues.name}-${inventoryItems.length}`,
-      ...formValues,
-      image: inventoryImages[inventoryItems.length % inventoryImages.length],
-      price: formValues.price || copy.adminDefaultPrice,
-    };
-
-    setInventoryItems((currentItems) => editingItemId
-      ? currentItems.map((item) => (item.id === editingItemId ? { ...item, ...updatedProduct, image: item.image } : item))
-      : [...currentItems, updatedProduct]);
+    const imageUrl = formValues.imageUrl.trim();
+    const currentItem = inventoryItems.find((item) => item.id === editingItemId);
+    saveProduct({
+      id: editingItemId || `produto-${Date.now()}`,
+      name: formValues.name.trim(),
+      category: formValues.category.trim(),
+      description: formValues.description.trim(),
+      price: parsePrice(formValues.price),
+      imageUrl,
+      image: imageUrl ? { uri: imageUrl } : currentItem?.image || placeholderImage,
+      featured: currentItem?.featured || false,
+      sizes: currentItem?.sizes || defaultSizes,
+    });
     setEditingItemId("");
     setFormValues(initialFormValues);
     setStatusMessage(editingItemId ? copy.adminUpdateFeedback : copy.adminAddFeedback);
-  }, [editingItemId, formValues, inventoryItems.length]);
+  }, [editingItemId, formValues, inventoryItems, saveProduct]);
 
-  const logout = useCallback(() => {
-    // Redireciona substituindo a pilha de navegação para evitar que volte apertando 'Voltar'
-    navigation.replace("Login");
-  }, [navigation]);
+  const handleLogout = useCallback(() => {
+    // Limpa a pilha para não ser possível voltar ao painel depois de sair.
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    logout();
+  }, [logout, navigation]);
 
   return (
     <View style={styles.screen}>
@@ -98,7 +95,10 @@ export default function Admin({ navigation }) {
           <Text style={styles.brand}>{copy.brand}</Text>
           <View style={styles.badge}><Text style={styles.badgeText}>{copy.adminBadge}</Text></View>
         </View>
-        <Pressable accessibilityLabel={copy.adminLogoutLabel} accessibilityRole="button" onPress={logout} style={styles.logoutButton}>
+        <Pressable accessibilityLabel={copy.adminViewStore} accessibilityRole="button" onPress={() => navigation.navigate("Home")} style={styles.viewStoreButton}>
+          <Text style={styles.logoutText}>{copy.adminViewStore}</Text>
+        </Pressable>
+        <Pressable accessibilityLabel={copy.adminLogoutLabel} accessibilityRole="button" onPress={handleLogout} style={styles.logoutButton}>
           <LogoutIcon height={theme.admin.size.logoutIcon} width={theme.admin.size.logoutIcon} />
           <Text style={styles.logoutText}>{copy.adminLogout}</Text>
         </Pressable>
@@ -118,7 +118,7 @@ export default function Admin({ navigation }) {
             <AdminTextField label={copy.adminDescriptionLabel} multiline onChangeText={(value) => updateField("description", value)} placeholder={copy.adminDescriptionPlaceholder} value={formValues.description} />
           </View>
           <Pressable accessibilityLabel={copy.adminAddProductLabel} accessibilityRole="button" onPress={addProduct} style={styles.submitButton}>
-            <Text style={styles.submitText}>{copy.adminAddProductAction}</Text>
+            <Text style={styles.submitText}>{editingItemId ? copy.adminSaveProductAction : copy.adminAddProductAction}</Text>
           </Pressable>
           {statusMessage ? <Text accessibilityLiveRegion="polite" style={styles.status}>{statusMessage}</Text> : null}
         </View>
@@ -140,7 +140,19 @@ export default function Admin({ navigation }) {
   );
 }
 
+export default function Admin(props) {
+  return (
+    <RequireAuth role="admin">
+      <AdminContent {...props} />
+    </RequireAuth>
+  );
+}
+
 const styles = StyleSheet.create({
+  viewStoreButton: {
+    marginLeft: "auto",
+    marginRight: theme.spacing.lg,
+  },
   screen: {
     backgroundColor: theme.colors.adminCanvas,
     flex: theme.flex.full,

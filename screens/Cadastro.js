@@ -4,7 +4,9 @@ import Svg, { Ellipse, Path } from "react-native-svg";
 import FormTextField from "../components/FormTextField";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
+import { useAuth } from "../context/AuthContext";
 import { copy, theme } from "../theme";
+import { finishAuth } from "../utils/navigation";
 
 function EyeIcon() {
   return (
@@ -23,13 +25,17 @@ function PasswordAccessory({ isVisible, onPress }) {
   );
 }
 
-export default function Cadastro({ navigation }) {
+export default function Cadastro({ navigation, route }) {
+  const { register } = useAuth();
+  const redirectTo = route.params?.redirectTo;
+  const [errorMessage, setErrorMessage] = useState("");
   const [formValues, setFormValues] = useState({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
 
   const updateField = (fieldName) => (value) => {
     setFormValues((currentValues) => ({ ...currentValues, [fieldName]: value }));
+    setErrorMessage("");
   };
 
   const fieldProps = (fieldName, label, placeholder, inputProps = {}) => ({
@@ -41,13 +47,64 @@ export default function Cadastro({ navigation }) {
   });
 
   const handleRegister = () => {
-    navigation.replace("Home");
+    const value = (fieldName) => (formValues[fieldName] || "").trim();
+
+    if (!value("firstName") || !value("email") || !value("password")) {
+      setErrorMessage(copy.cadastroRequired);
+      return;
+    }
+    if (!value("email").includes("@")) {
+      setErrorMessage(copy.cadastroInvalidEmail);
+      return;
+    }
+    if (value("password").length < 4) {
+      setErrorMessage(copy.cadastroShortPassword);
+      return;
+    }
+    if (value("password") !== value("passwordConfirmation")) {
+      setErrorMessage(copy.cadastroPasswordMismatch);
+      return;
+    }
+
+    const newUser = register({
+      firstName: value("firstName"),
+      lastName: value("lastName"),
+      cpf: value("cpf"),
+      birthDate: value("birthDate"),
+      email: value("email"),
+      phone: value("phone"),
+      password: value("password"),
+      address: {
+        zipCode: value("zipCode"),
+        address: value("address"),
+        number: value("number"),
+        complement: value("complement"),
+        district: value("district"),
+        city: value("city"),
+        state: value("state"),
+      },
+    });
+    if (!newUser) {
+      setErrorMessage(copy.cadastroEmailTaken);
+      return;
+    }
+    finishAuth(navigation, newUser, redirectTo);
+  };
+
+  // Se veio do Login, volta para ele; senão abre o Login mantendo o destino.
+  const goToLogin = () => {
+    const routes = navigation.getState().routes;
+    if (routes[routes.length - 2]?.name === "Login") {
+      navigation.goBack();
+    } else {
+      navigation.navigate("Login", { redirectTo });
+    }
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.select({ ios: "padding", default: undefined })} style={styles.screen}>
       <View style={styles.headerArea}>
-        <StoreHeader onAccountPress={() => navigation.navigate("Login")} onBagPress={() => navigation.navigate("Carrinho")} />
+        <StoreHeader />
       </View>
       <ScrollView bounces={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" style={styles.scrollView}>
         <View style={styles.formContent}>
@@ -100,12 +157,13 @@ export default function Cadastro({ navigation }) {
             />
           </View>
 
+          {errorMessage ? <Text accessibilityLiveRegion="polite" style={styles.error}>{errorMessage}</Text> : null}
           <Pressable accessibilityLabel={copy.createAccountLabel} accessibilityRole="button" onPress={handleRegister} style={styles.submitButton}>
             <Text style={styles.submitText}>{copy.createAccountAction}</Text>
           </Pressable>
           <View style={styles.loginRow}>
             <Text style={styles.loginPrompt}>{copy.loginPrompt}</Text>
-            <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Login")}><Text style={styles.loginLink}>{copy.loginLink}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={goToLogin}><Text style={styles.loginLink}>{copy.loginLink}</Text></Pressable>
           </View>
         </View>
         <StoreFooter />
@@ -139,6 +197,7 @@ const styles = StyleSheet.create({
   zipLink: { color: theme.colors.cadastroLink, ...theme.typography.cadastroZipLink },
   fieldWithoutLabel: { marginTop: theme.cadastro.spacing.zipLabelToInput },
   submitButton: { alignItems: "center", backgroundColor: theme.colors.ink, borderRadius: theme.cadastro.radius.button, height: theme.cadastro.size.buttonHeight, justifyContent: "center", marginTop: theme.cadastro.spacing.submitTop },
+  error: { color: theme.colors.danger, marginTop: theme.spacing.lg, textAlign: "center", ...theme.typography.cadastroLoginPrompt },
   submitText: { color: theme.colors.canvas, ...theme.typography.cadastroButton },
   loginRow: { alignItems: "center", flexDirection: "row", justifyContent: "center", marginTop: theme.cadastro.spacing.submitToLogin },
   loginPrompt: { color: theme.colors.cadastroPlaceholder, marginRight: theme.cadastro.spacing.loginGap, ...theme.typography.cadastroLoginPrompt },
