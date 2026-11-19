@@ -9,8 +9,8 @@ import MenuIcon from "../assets/List.svg";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useStore } from "../context/StoreContext";
-import { categories } from "../data/products";
 import { copy, theme } from "../theme";
+import HeartIcon from "./HeartIcon";
 import { formatPrice } from "../utils/format";
 import { goTo } from "../utils/navigation";
 
@@ -33,7 +33,9 @@ export default function StoreHeader() {
   const insets = useSafeAreaInsets();
   const { user, isAdmin, logout } = useAuth();
   const { itemCount } = useCart();
-  const { products } = useStore();
+  const { categories, favoriteIds, products } = useStore();
+  // Só conta favoritos que ainda existem no catálogo.
+  const favoriteCount = products.filter((product) => favoriteIds.includes(product.id)).length;
   const [openPanel, setOpenPanel] = useState(null); // "search" | "account" | "menu" | null
   const [query, setQuery] = useState("");
 
@@ -118,8 +120,8 @@ export default function StoreHeader() {
       <>
         <Text style={styles.panelTitle}>{copy.categories}</Text>
         <MenuRow label={copy.menuAllProducts} onPress={select(() => goTo(navigation, "Lancamentos", { category: undefined, badge: undefined }))} />
-        {categories.map((category) => (
-          <MenuRow key={category} label={category} onPress={select(() => goTo(navigation, "Lancamentos", { category, badge: undefined }))} />
+        {categories.map(({ id, name }) => (
+          <MenuRow key={id} label={name} onPress={select(() => goTo(navigation, "Lancamentos", { category: name, badge: undefined }))} />
         ))}
       </>
     );
@@ -137,6 +139,10 @@ export default function StoreHeader() {
         <Pressable accessibilityLabel={copy.accountLabel} accessibilityRole="button" onPress={() => setOpenPanel("account")} style={styles.iconButton}>
           <AccountIcon height={theme.size.accountIcon} width={theme.size.accountIcon} />
           {user ? <View style={styles.loggedDot} /> : null}
+        </Pressable>
+        <Pressable accessibilityLabel={copy.favoritesLabel} accessibilityRole="button" onPress={() => goTo(navigation, "Favoritos")} style={styles.iconButton}>
+          <HeartIcon color={theme.colors.canvas} strokeWidth={1.4} />
+          {favoriteCount ? <View style={styles.badge}><Text style={styles.badgeText}>{favoriteCount}</Text></View> : null}
         </Pressable>
         <Pressable accessibilityLabel={copy.bagLabel} accessibilityRole="button" onPress={() => goTo(navigation, "Carrinho")} style={styles.iconButton}>
           <BagIcon height={theme.size.icon} width={theme.size.icon} />

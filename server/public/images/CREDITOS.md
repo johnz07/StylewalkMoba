@@ -1,6 +1,6 @@
 # Créditos das imagens
 
-As fotos abaixo vêm do [Unsplash](https://unsplash.com) e são usadas sob a [Licença Unsplash](https://unsplash.com/license) (uso gratuito, inclusive comercial, sem exigência de atribuição). Cópias delas ficam também em `server/public/images/`.
+As fotos abaixo vêm do [Unsplash](https://unsplash.com) e são usadas sob a [Licença Unsplash](https://unsplash.com/license) (uso gratuito, inclusive comercial, sem exigência de atribuição). Todas as fotos de produtos ficam nesta pasta e são servidas pela API em `/images`.
 
 | Arquivo | Produto | Foto | Autor |
 |---|---|---|---|

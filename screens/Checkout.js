@@ -10,7 +10,7 @@ import { copy, theme } from "../theme";
 import { formatPrice } from "../utils/format";
 import { goTo } from "../utils/navigation";
 
-const emptyAddress = { zipCode: "", address: "", number: "", complement: "", district: "", city: "", state: "" };
+const emptyAddress = { zipCode: "", street: "", number: "", complement: "", district: "", city: "", state: "" };
 
 function CheckoutContent({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -32,7 +32,7 @@ function CheckoutContent({ navigation }) {
   });
 
   const confirmOrder = () => {
-    if (!address.zipCode.trim() || !address.address.trim() || !address.number.trim() || !address.city.trim()) {
+    if (!address.zipCode.trim() || !address.street.trim() || !address.number.trim() || !address.city.trim()) {
       setErrorMessage(copy.checkoutAddressRequired);
       return;
     }
@@ -58,7 +58,7 @@ function CheckoutContent({ navigation }) {
             <Text style={styles.sectionTitle}>{copy.deliveryTitle}</Text>
             <View style={styles.card}>
               <FormTextField {...fieldProps("zipCode", copy.zipCodeLabel, copy.zipCodePlaceholder, { keyboardType: "numeric" })} />
-              <FormTextField {...fieldProps("address", copy.addressLabel, copy.addressPlaceholder)} />
+              <FormTextField {...fieldProps("street", copy.addressLabel, copy.addressPlaceholder)} />
               <View style={styles.fieldRow}>
                 <FormTextField containerStyle={styles.halfField} {...fieldProps("number", copy.numberLabel, copy.numberPlaceholder, { keyboardType: "numeric" })} />
                 <FormTextField containerStyle={styles.halfField} {...fieldProps("complement", copy.complementLabel, copy.complementPlaceholder)} />

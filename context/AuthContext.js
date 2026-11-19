@@ -1,48 +1,65 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
-
-// Usuários mockados até existir um backend de verdade.
-const mockUsers = [
-  { id: "admin", firstName: "Admin", lastName: "", email: "admin@admin.com.br", password: "0000", role: "admin" },
-  {
-    id: "cliente-demo",
-    firstName: "Cliente",
-    lastName: "Demo",
-    email: "cliente@stylewalk.com.br",
-    password: "1234",
-    role: "customer",
-    address: { zipCode: "01001-000", address: "Praça da Sé", number: "100", complement: "", district: "Sé", city: "São Paulo", state: "SP" },
-  },
-];
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { api, setAuthToken, setUnauthorizedHandler } from "../services/api";
+import { loadJSON, removeKey, saveJSON, storageKeys } from "../utils/storage";
 
 const AuthContext = createContext(null);
 
+// Sessão do usuário: login/cadastro na API (JWT) e sessão salva no aparelho.
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(mockUsers);
   const [user, setUser] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(true);
 
-  // Retorna o usuário logado ou null se as credenciais forem inválidas.
-  const login = useCallback((email, password) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const foundUser = users.find((candidate) => candidate.email === normalizedEmail && candidate.password === password);
-    setUser(foundUser || null);
-    return foundUser || null;
-  }, [users]);
+  const startSession = useCallback(async ({ token, user: sessionUser }) => {
+    setAuthToken(token);
+    setUser(sessionUser);
+    await saveJSON(storageKeys.session, { token, user: sessionUser });
+    return sessionUser;
+  }, []);
 
-  // Retorna o novo usuário ou null se o e-mail já estiver cadastrado.
-  const register = useCallback((data) => {
-    const normalizedEmail = data.email.trim().toLowerCase();
-    if (users.some((candidate) => candidate.email === normalizedEmail)) {
-      return null;
-    }
-    const newUser = { ...data, email: normalizedEmail, id: `user-${Date.now()}`, role: "customer" };
-    setUsers((currentUsers) => [...currentUsers, newUser]);
-    setUser(newUser);
-    return newUser;
-  }, [users]);
+  const logout = useCallback(() => {
+    setAuthToken(null);
+    setUser(null);
+    removeKey(storageKeys.session);
+  }, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  // Ao abrir o app: restaura a sessão salva e confirma o token com a API.
+  // Sem internet, mantém os dados salvos; com token expirado (401), sai.
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    let isActive = true;
+    (async () => {
+      const session = await loadJSON(storageKeys.session, null);
+      if (session?.token && isActive) {
+        setAuthToken(session.token);
+        setUser(session.user);
+        setIsRestoring(false);
+        try {
+          const freshUser = await api.me();
+          if (isActive) {
+            setUser(freshUser);
+            saveJSON(storageKeys.session, { token: session.token, user: freshUser });
+          }
+        } catch {
+          // 401 já chamou logout; outros erros (sem rede) mantêm a sessão salva.
+        }
+        return;
+      }
+      if (isActive) setIsRestoring(false);
+    })();
+    return () => {
+      isActive = false;
+      setUnauthorizedHandler(null);
+    };
+  }, [logout]);
 
-  const value = useMemo(() => ({ user, isAdmin: user?.role === "admin", login, register, logout }), [user, login, register, logout]);
+  // Retornam o usuário logado ou lançam ApiError com a mensagem da API.
+  const login = useCallback(async (email, password) => startSession(await api.login(email, password)), [startSession]);
+  const register = useCallback(async (data) => startSession(await api.register(data)), [startSession]);
+
+  const value = useMemo(
+    () => ({ user, isAdmin: user?.role === "admin", isRestoring, login, register, logout }),
+    [user, isRestoring, login, register, logout],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

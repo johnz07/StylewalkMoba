@@ -21,23 +21,29 @@ export default function Login({ navigation, route }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isUsernameFocused, setIsUsernameFocused] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const cleanUsername = username.trim();
     const cleanPassword = password.trim();
 
+    if (isSubmitting) {
+      return;
+    }
     if (!cleanUsername || !cleanPassword) {
       setErrorMessage(copy.loginRequired);
       return;
     }
 
-    // Admin e clientes usam o mesmo login; o perfil (role) decide o destino.
-    const loggedUser = login(cleanUsername, cleanPassword);
-    if (!loggedUser) {
-      setErrorMessage(copy.loginInvalid);
-      return;
+    // Admin e clientes usam o mesmo login (POST /auth/login); o perfil (role) decide o destino.
+    setIsSubmitting(true);
+    try {
+      const loggedUser = await login(cleanUsername, cleanPassword);
+      finishAuth(navigation, loggedUser, redirectTo);
+    } catch (error) {
+      setErrorMessage(error.message);
+      setIsSubmitting(false);
     }
-    finishAuth(navigation, loggedUser, redirectTo);
   };
 
   const handleGoToCadastro = () => {
@@ -104,8 +110,15 @@ export default function Login({ navigation, route }) {
 
         {errorMessage ? <Text accessibilityLiveRegion="polite" style={styles.error}>{errorMessage}</Text> : null}
 
-        <Pressable accessibilityLabel={copy.loginButtonLabel} accessibilityRole="button" onPress={handleSubmit} style={styles.loginButton}>
-          <Text style={styles.loginButtonText}>{copy.loginAction}</Text>
+        <Pressable
+          accessibilityLabel={copy.loginButtonLabel}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isSubmitting }}
+          disabled={isSubmitting}
+          onPress={handleSubmit}
+          style={[styles.loginButton, isSubmitting ? styles.buttonDisabled : null]}
+        >
+          <Text style={styles.loginButtonText}>{isSubmitting ? copy.loginLoading : copy.loginAction}</Text>
         </Pressable>
 
         <View style={styles.registrationRow}>
@@ -122,6 +135,9 @@ export default function Login({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   screen: {
     alignItems: "center",
     backgroundColor: theme.colors.loginCanvas,

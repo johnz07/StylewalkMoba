@@ -3,11 +3,12 @@ import { ImageBackground, Platform, Pressable, ScrollView, StatusBar, StyleSheet
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import CatalogControl from "../components/CatalogControl";
+import LoadState from "../components/LoadState";
 import ProductCard from "../components/ProductCard";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
 import { useStore } from "../context/StoreContext";
-import { badges, categories } from "../data/products";
+import { badges } from "../data/products";
 import { copy, theme } from "../theme";
 import { goTo } from "../utils/navigation";
 
@@ -49,7 +50,8 @@ export default function Lancamentos({ navigation, route }) {
   const category = route.params?.category;
   const badge = route.params?.badge;
   const insets = useSafeAreaInsets();
-  const { favoriteIds, products, toggleFavorite } = useStore();
+  const { categories: categoryList, errorMessage, favoriteIds, products, reload, status, toggleFavorite } = useStore();
+  const categories = categoryList.map((item) => item.name);
   const [isFilterOpen, setIsFilterOpen] = useState(Boolean(category || badge));
   const [sortOrder, setSortOrder] = useState("newest");
   const [statusMessage, setStatusMessage] = useState("");
@@ -90,8 +92,14 @@ export default function Lancamentos({ navigation, route }) {
           </>
         ) : null}
         {statusMessage ? <Text accessibilityLiveRegion="polite" style={styles.status}>{statusMessage}</Text> : null}
-        {visibleProducts.length ? null : <Text style={styles.status}>{copy.searchEmpty}</Text>}
-        <View style={styles.grid}>{visibleProducts.map((product) => <ProductCard isFavorite={favoriteIds.includes(product.id)} key={product.id} onAddToBag={() => openProduct(product)} onPress={() => openProduct(product)} onToggleFavorite={() => toggleFavorite(product.id)} product={product} variant="catalog" />)}</View>
+        {status === "ready" ? (
+          <>
+            {visibleProducts.length ? null : <Text style={styles.status}>{copy.searchEmpty}</Text>}
+            <View style={styles.grid}>{visibleProducts.map((product) => <ProductCard isFavorite={favoriteIds.includes(product.id)} key={product.id} onAddToBag={() => openProduct(product)} onPress={() => openProduct(product)} onToggleFavorite={() => toggleFavorite(product.id)} product={product} variant="catalog" />)}</View>
+          </>
+        ) : (
+          <LoadState message={errorMessage} onRetry={reload} status={status} />
+        )}
       </View>
       <View style={styles.footer}><StoreFooter /></View>
     </ScrollView>
