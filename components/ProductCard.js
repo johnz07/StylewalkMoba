@@ -14,13 +14,14 @@ export default function ProductCard({ isFavorite, onAddToBag, onPress, onToggleF
   const isCatalog = variant === "catalog";
   const favoriteLabel = isFavorite ? copy.removeFavoriteLabel : copy.favoriteLabel;
   const category = product.category || copy.running;
+  const badgeLabel = product.badge ? copy.badgeLabels[product.badge] : null;
 
   return (
     <Pressable accessibilityLabel={product.name} accessibilityRole="button" onPress={onPress} style={[styles.card, isCatalog ? styles.catalogCard : null]}>
       <View style={[styles.imageFrame, isCatalog ? styles.catalogImageFrame : null]}>
         <Image accessibilityLabel={product.name} source={product.image} style={styles.image} />
         <View style={[styles.tag, isCatalog ? styles.catalogTag : null]}><Text style={styles.tagText}>{category}</Text></View>
-        <View style={[styles.newTag, isCatalog ? styles.catalogNewTag : null]}><Text style={styles.tagText}>{copy.productNew}</Text></View>
+        {badgeLabel ? <View style={[styles.newTag, isCatalog ? styles.catalogNewTag : null]}><Text style={styles.tagText}>{badgeLabel}</Text></View> : null}
         <Pressable accessibilityLabel={favoriteLabel} accessibilityRole="button" onPress={onToggleFavorite} style={[styles.favoriteButton, isCatalog ? styles.catalogFavoriteButton : null]}>
           <HeartIcon height={isCatalog ? theme.lancamentos.size.favoriteIcon : theme.size.icon} opacity={isFavorite ? theme.opacity.favoriteActive : theme.opacity.favoriteIdle} width={isCatalog ? theme.lancamentos.size.favoriteIcon : theme.size.icon} />
         </Pressable>
@@ -41,7 +42,7 @@ export default function ProductCard({ isFavorite, onAddToBag, onPress, onToggleF
 
 const styles = StyleSheet.create({
   card: { backgroundColor: theme.colors.canvas, borderColor: theme.colors.cardBorder, borderRadius: theme.radius.medium, borderWidth: theme.spacing.hairline, overflow: "hidden", shadowColor: theme.colors.ink, shadowOpacity: theme.opacity.cardShadow, shadowRadius: theme.spacing.sm, elevation: theme.elevation.card },
-  catalogCard: { borderWidth: theme.spacing.none, borderRadius: theme.spacing.none, elevation: theme.elevation.none, flex: theme.flex.full, overflow: "visible", shadowOpacity: theme.opacity.none },
+  catalogCard: { borderWidth: theme.spacing.none, borderRadius: theme.spacing.none, elevation: theme.elevation.none, width: "48%", overflow: "visible", shadowOpacity: theme.opacity.none },
   imageFrame: { height: theme.size.productImageHeight, position: "relative" },
   catalogImageFrame: { borderRadius: theme.lancamentos.radius.productImage, height: theme.lancamentos.size.productImageHeight, overflow: "hidden" },
   image: { height: "100%", resizeMode: "cover", width: "100%" },

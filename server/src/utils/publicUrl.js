@@ -9,7 +9,6 @@ function withPublicImages(req, product) {
   return {
     ...product,
     imageUrl: toPublicUrl(req, product.imageUrl),
-    featuredImageUrl: toPublicUrl(req, product.featuredImageUrl),
   };
 }
 

@@ -72,6 +72,7 @@ function AdminContent({ navigation }) {
       imageUrl,
       image: imageUrl ? { uri: imageUrl } : currentItem?.image || placeholderImage,
       featured: currentItem?.featured || false,
+      badge: currentItem?.badge || null,
       sizes: currentItem?.sizes || defaultSizes,
     });
     setEditingItemId("");

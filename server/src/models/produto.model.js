@@ -23,19 +23,23 @@ function toProduct(row) {
     categoryId: row.categoria_id,
     category: row.categoria_nome || "",
     imageUrl: row.imagem_url,
-    featuredImageUrl: row.imagem_destaque_url,
+    badge: row.selo,
     featured: row.destaque,
     sizes: row.tamanhos,
   };
 }
 
-// Filtros opcionais: categoria (nome), busca (nome/descrição/categoria, sem acento) e ordem.
-async function findAll({ category, search, order } = {}) {
+// Filtros opcionais: categoria (nome), selo, busca (nome/descrição/categoria, sem acento) e ordem.
+async function findAll({ category, badge, search, order } = {}) {
   const conditions = ["p.ativo"];
   const params = [];
   if (category) {
     params.push(category);
     conditions.push(`lower(c.nome) = lower($${params.length})`);
+  }
+  if (badge) {
+    params.push(badge);
+    conditions.push(`p.selo::text = $${params.length}`);
   }
   if (search) {
     params.push(`%${search}%`);
@@ -54,9 +58,9 @@ async function findById(id) {
 
 async function create(product) {
   const { rows } = await db.query(
-    `INSERT INTO produtos (nome, descricao, preco, categoria_id, imagem_url, imagem_destaque_url, destaque, tamanhos)
+    `INSERT INTO produtos (nome, descricao, preco, categoria_id, imagem_url, selo, destaque, tamanhos)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [product.name, product.description, product.price, product.categoryId, product.imageUrl, product.featuredImageUrl, product.featured, product.sizes],
+    [product.name, product.description, product.price, product.categoryId, product.imageUrl, product.badge, product.featured, product.sizes],
   );
   return findById(rows[0].id);
 }
@@ -64,10 +68,10 @@ async function create(product) {
 async function update(id, product) {
   const { rowCount } = await db.query(
     `UPDATE produtos
-     SET nome = $2, descricao = $3, preco = $4, categoria_id = $5, imagem_url = $6, imagem_destaque_url = $7,
+     SET nome = $2, descricao = $3, preco = $4, categoria_id = $5, imagem_url = $6, selo = $7,
          destaque = $8, tamanhos = $9, atualizado_em = now()
      WHERE id = $1 AND ativo`,
-    [id, product.name, product.description, product.price, product.categoryId, product.imageUrl, product.featuredImageUrl, product.featured, product.sizes],
+    [id, product.name, product.description, product.price, product.categoryId, product.imageUrl, product.badge, product.featured, product.sizes],
   );
   return rowCount ? findById(id) : null;
 }

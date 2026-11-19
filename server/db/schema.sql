@@ -1,13 +1,15 @@
 -- Schema do StyleWalk (PostgreSQL). Recriado do zero por `npm run db:setup`.
 
 DROP TABLE IF EXISTS itens_pedido, pedidos, cupons, produtos, categorias, enderecos, usuarios CASCADE;
-DROP TYPE IF EXISTS perfil_usuario, status_pedido;
+DROP TYPE IF EXISTS perfil_usuario, status_pedido, selo_produto;
 
 -- Busca de produtos sem diferenciar acentos ("tenis" encontra "tênis").
 CREATE EXTENSION IF NOT EXISTS unaccent;
 
 CREATE TYPE perfil_usuario AS ENUM ('customer', 'admin');
 CREATE TYPE status_pedido AS ENUM ('pending', 'approved', 'rejected');
+-- Selo exibido no card do produto e usado nos atalhos da Home.
+CREATE TYPE selo_produto AS ENUM ('exclusivo', 'novo', 'limitado');
 
 CREATE TABLE usuarios (
   id              INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -48,7 +50,7 @@ CREATE TABLE produtos (
   preco                NUMERIC(10,2) NOT NULL CHECK (preco >= 0),
   categoria_id         INTEGER REFERENCES categorias(id),
   imagem_url           TEXT,
-  imagem_destaque_url  TEXT,
+  selo                 selo_produto,
   destaque             BOOLEAN   NOT NULL DEFAULT false,
   tamanhos             INTEGER[] NOT NULL DEFAULT '{37,38,39,40,41,42,43,44}',
   ativo                BOOLEAN   NOT NULL DEFAULT true,
