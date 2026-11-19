@@ -40,3 +40,6 @@ yarn-error.*
 /ios
 /android
 .locofy/
+
+# env files (segredos e IP local)
+.env

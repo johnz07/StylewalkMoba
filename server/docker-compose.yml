@@ -1,0 +1,17 @@
+# Banco PostgreSQL para desenvolvimento local: `npm run db:up` dentro de server/.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: stylewalk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stylewalk
+      POSTGRES_PASSWORD: stylewalk
+      POSTGRES_DB: stylewalk
+    ports:
+      - "5432:5432"
+    volumes:
+      - stylewalk-data:/var/lib/postgresql/data
+
+volumes:
+  stylewalk-data:
