@@ -117,9 +117,9 @@ export default function StoreHeader() {
     return (
       <>
         <Text style={styles.panelTitle}>{copy.categories}</Text>
-        <MenuRow label={copy.menuAllProducts} onPress={select(() => goTo(navigation, "Lancamentos", { category: undefined }))} />
+        <MenuRow label={copy.menuAllProducts} onPress={select(() => goTo(navigation, "Lancamentos", { category: undefined, badge: undefined }))} />
         {categories.map((category) => (
-          <MenuRow key={category} label={category} onPress={select(() => goTo(navigation, "Lancamentos", { category }))} />
+          <MenuRow key={category} label={category} onPress={select(() => goTo(navigation, "Lancamentos", { category, badge: undefined }))} />
         ))}
       </>
     );

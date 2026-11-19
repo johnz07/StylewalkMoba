@@ -3,6 +3,7 @@ const HttpError = require("./httpError");
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 4;
+const BADGES = ["exclusivo", "novo", "limitado"];
 
 const text = (value) => (typeof value === "string" ? value.trim() : "");
 const digits = (value) => text(value).replace(/\D/g, "");
@@ -64,7 +65,7 @@ function validateProduct(data = {}) {
     price,
     categoryId: data.categoryId === undefined || data.categoryId === null || data.categoryId === "" ? null : Number(data.categoryId),
     imageUrl: text(data.imageUrl) || null,
-    featuredImageUrl: text(data.featuredImageUrl) || null,
+    badge: text(data.badge) || null,
     featured: data.featured === true,
     sizes: data.sizes === undefined ? [37, 38, 39, 40, 41, 42, 43, 44] : data.sizes,
   };
@@ -72,6 +73,7 @@ function validateProduct(data = {}) {
   if (typeof price !== "number" || !Number.isFinite(price) || price < 0) throw new HttpError(400, "Informe um preço válido.");
   product.price = Math.round(price * 100) / 100;
   if (product.categoryId !== null && !Number.isInteger(product.categoryId)) throw new HttpError(400, "Categoria inválida.");
+  if (product.badge !== null && !BADGES.includes(product.badge)) throw new HttpError(400, `Selo inválido. Use: ${BADGES.join(", ")}.`);
   const validSizes = Array.isArray(product.sizes) && product.sizes.length > 0 && product.sizes.every((size) => Number.isInteger(size) && size > 0);
   if (!validSizes) throw new HttpError(400, "Informe ao menos um tamanho válido.");
   product.sizes = [...new Set(product.sizes)].sort((a, b) => a - b);
@@ -85,4 +87,4 @@ function parseId(value, notFoundMessage) {
   return id;
 }
 
-module.exports = { isValidEmail, parseBirthDate, validateRegistration, validateProduct, parseId, MIN_PASSWORD_LENGTH };
+module.exports = { isValidEmail, parseBirthDate, validateRegistration, validateProduct, parseId, MIN_PASSWORD_LENGTH, BADGES };

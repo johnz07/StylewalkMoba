@@ -5,6 +5,16 @@ import StoreHeader from "../components/StoreHeader";
 import ProductCard from "../components/ProductCard";
 import { useStore } from "../context/StoreContext";
 import { copy, theme } from "../theme";
+import { goTo } from "../utils/navigation";
+
+const allProducts = { badge: undefined, category: undefined };
+
+// Atalhos do banner: cada um abre Lançamentos filtrado pelo selo.
+const heroShortcuts = [
+  { badge: "exclusivo", label: copy.newDrop, style: "dropChip" },
+  { badge: "novo", label: copy.new, style: "shortChip" },
+  { badge: "limitado", label: copy.limited, style: "shortChip" },
+];
 
 export default function Home({ navigation }) {
   const { favoriteIds, products, toggleFavorite } = useStore();
@@ -18,14 +28,22 @@ export default function Home({ navigation }) {
           <View style={styles.heroOverlay}>
             <StoreHeader />
             <View style={styles.chipRow}>
-              <View style={styles.dropChip}><Text style={styles.chipText}>{copy.newDrop}</Text></View>
-              <View style={styles.shortChip}><Text style={styles.chipText}>{copy.new}</Text></View>
-              <View style={styles.shortChip}><Text style={styles.chipText}>{copy.limited}</Text></View>
+              {heroShortcuts.map(({ badge, label, style }) => (
+                <Pressable
+                  accessibilityLabel={copy.badgeShortcutLabel(label)}
+                  accessibilityRole="button"
+                  key={badge}
+                  onPress={() => goTo(navigation, "Lancamentos", { badge, category: undefined })}
+                  style={({ pressed }) => [styles[style], pressed ? styles.chipPressed : null]}
+                >
+                  <Text style={styles.chipText}>{label}</Text>
+                </Pressable>
+              ))}
             </View>
             <View style={styles.heroCopy}>
               <Text style={styles.heroTitle}>{copy.heroTitle}</Text>
               <Text style={styles.heroDescription}>{copy.heroBody}</Text>
-              <Pressable accessibilityLabel={copy.collectionLabel} accessibilityRole="button" onPress={() => navigation.navigate("Lancamentos")} style={styles.collectionButton}>
+              <Pressable accessibilityLabel={copy.collectionLabel} accessibilityRole="button" onPress={() => goTo(navigation, "Lancamentos", allProducts)} style={styles.collectionButton}>
                 <Text style={styles.collectionButtonText}>{copy.collectionAction}</Text>
               </Pressable>
             </View>
@@ -36,7 +54,7 @@ export default function Home({ navigation }) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{copy.featuredTitle}</Text>
 
-          <Pressable accessibilityRole="button" onPress={() => navigation.navigate("Lancamentos")}>
+          <Pressable accessibilityRole="button" onPress={() => goTo(navigation, "Lancamentos", allProducts)}>
             <Text style={styles.seeAll}>{copy.seeAll}</Text>
           </Pressable>
 
@@ -49,7 +67,7 @@ export default function Home({ navigation }) {
               onAddToBag={() => openProduct(product)}
               onPress={() => openProduct(product)}
               onToggleFavorite={() => toggleFavorite(product.id)}
-              product={{ ...product, image: product.featuredImage || product.image }}
+              product={product}
             />
           ))}
         </View>
@@ -100,6 +118,9 @@ const styles = StyleSheet.create({
     borderWidth: theme.spacing.hairline,
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
+  },
+  chipPressed: {
+    opacity: 0.7,
   },
   chipText: {
     color: theme.colors.canvas,
