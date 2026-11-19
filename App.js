@@ -9,6 +9,7 @@ import Admin from "./screens/Admin";
 import Cadastro from "./screens/Cadastro";
 import Carrinho from "./screens/Carrinho";
 import Checkout from "./screens/Checkout";
+import Favoritos from "./screens/Favoritos";
 import Home from "./screens/Home";
 import Lancamentos from "./screens/Lancamentos";
 import Login from "./screens/Login";
@@ -17,7 +18,7 @@ import Produto from "./screens/Produto";
 
 const Stack = createNativeStackNavigator();
 
-// Jornada: a loja é pública (Home > Lançamentos > Produto > Carrinho).
+// Jornada: a loja é pública (Home > Lançamentos > Produto > Carrinho; Favoritos pelo coração do cabeçalho).
 // Login/Cadastro só são exigidos ao finalizar a compra; Checkout, PedidoConfirmado
 // e Admin são protegidos dentro da própria tela (components/RequireAuth).
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
                 <Stack.Screen component={Lancamentos} name="Lancamentos" />
                 <Stack.Screen component={Produto} name="Produto" />
                 <Stack.Screen component={Carrinho} name="Carrinho" />
+                <Stack.Screen component={Favoritos} name="Favoritos" />
 
                 {/* Autenticação */}
                 <Stack.Screen component={Login} name="Login" />

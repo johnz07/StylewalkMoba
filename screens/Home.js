@@ -1,5 +1,6 @@
 import React from "react";
 import { ImageBackground, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import LoadState from "../components/LoadState";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
 import ProductCard from "../components/ProductCard";
@@ -17,7 +18,7 @@ const heroShortcuts = [
 ];
 
 export default function Home({ navigation }) {
-  const { favoriteIds, products, toggleFavorite } = useStore();
+  const { errorMessage, favoriteIds, products, reload, status, toggleFavorite } = useStore();
   const featuredProducts = products.filter((product) => product.featured);
   const openProduct = (product) => navigation.navigate("Produto", { productId: product.id });
 
@@ -59,18 +60,22 @@ export default function Home({ navigation }) {
           </Pressable>
 
         </View>
-        <View style={styles.productList}>
-          {featuredProducts.map((product) => (
-            <ProductCard
-              isFavorite={favoriteIds.includes(product.id)}
-              key={product.id}
-              onAddToBag={() => openProduct(product)}
-              onPress={() => openProduct(product)}
-              onToggleFavorite={() => toggleFavorite(product.id)}
-              product={product}
-            />
-          ))}
-        </View>
+        {status === "ready" ? (
+          <View style={styles.productList}>
+            {featuredProducts.map((product) => (
+              <ProductCard
+                isFavorite={favoriteIds.includes(product.id)}
+                key={product.id}
+                onAddToBag={() => openProduct(product)}
+                onPress={() => openProduct(product)}
+                onToggleFavorite={() => toggleFavorite(product.id)}
+                product={product}
+              />
+            ))}
+          </View>
+        ) : (
+          <LoadState message={errorMessage} onRetry={reload} status={status} />
+        )}
       </View>
       <StoreFooter />
     </ScrollView>

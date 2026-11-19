@@ -32,6 +32,7 @@ export default function Cadastro({ navigation, route }) {
   const [formValues, setFormValues] = useState({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmationVisible, setIsConfirmationVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = (fieldName) => (value) => {
     setFormValues((currentValues) => ({ ...currentValues, [fieldName]: value }));
@@ -46,9 +47,12 @@ export default function Cadastro({ navigation, route }) {
     inputProps,
   });
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const value = (fieldName) => (formValues[fieldName] || "").trim();
 
+    if (isSubmitting) {
+      return;
+    }
     if (!value("firstName") || !value("email") || !value("password")) {
       setErrorMessage(copy.cadastroRequired);
       return;
@@ -66,29 +70,32 @@ export default function Cadastro({ navigation, route }) {
       return;
     }
 
-    const newUser = register({
-      firstName: value("firstName"),
-      lastName: value("lastName"),
-      cpf: value("cpf"),
-      birthDate: value("birthDate"),
-      email: value("email"),
-      phone: value("phone"),
-      password: value("password"),
-      address: {
-        zipCode: value("zipCode"),
-        address: value("address"),
-        number: value("number"),
-        complement: value("complement"),
-        district: value("district"),
-        city: value("city"),
-        state: value("state"),
-      },
-    });
-    if (!newUser) {
-      setErrorMessage(copy.cadastroEmailTaken);
-      return;
+    // POST /auth/register: a API valida de novo (e-mail repetido, CPF, data) e devolve a mensagem de erro.
+    setIsSubmitting(true);
+    try {
+      const newUser = await register({
+        firstName: value("firstName"),
+        lastName: value("lastName"),
+        cpf: value("cpf"),
+        birthDate: value("birthDate"),
+        email: value("email"),
+        phone: value("phone"),
+        password: value("password"),
+        address: {
+          zipCode: value("zipCode"),
+          street: value("street"),
+          number: value("number"),
+          complement: value("complement"),
+          district: value("district"),
+          city: value("city"),
+          state: value("state"),
+        },
+      });
+      finishAuth(navigation, newUser, redirectTo);
+    } catch (error) {
+      setErrorMessage(error.message);
+      setIsSubmitting(false);
     }
-    finishAuth(navigation, newUser, redirectTo);
   };
 
   // Se veio do Login, volta para ele; senão abre o Login mantendo o destino.
@@ -129,7 +136,7 @@ export default function Cadastro({ navigation, route }) {
               <Pressable accessibilityRole="button"><Text style={styles.zipLink}>{copy.zipCodeHelp}</Text></Pressable>
             </View>
             <FormTextField containerStyle={styles.fieldWithoutLabel} {...fieldProps("zipCode", "", copy.zipCodePlaceholder, { keyboardType: "numeric" })} />
-            <FormTextField {...fieldProps("address", copy.addressLabel, copy.addressPlaceholder)} />
+            <FormTextField {...fieldProps("street", copy.addressLabel, copy.addressPlaceholder)} />
             <View style={styles.fieldRow}>
               <FormTextField containerStyle={styles.halfField} {...fieldProps("number", copy.numberLabel, copy.numberPlaceholder, { keyboardType: "numeric" })} />
               <FormTextField containerStyle={styles.halfField} {...fieldProps("complement", copy.complementLabel, copy.complementPlaceholder)} />
@@ -158,8 +165,15 @@ export default function Cadastro({ navigation, route }) {
           </View>
 
           {errorMessage ? <Text accessibilityLiveRegion="polite" style={styles.error}>{errorMessage}</Text> : null}
-          <Pressable accessibilityLabel={copy.createAccountLabel} accessibilityRole="button" onPress={handleRegister} style={styles.submitButton}>
-            <Text style={styles.submitText}>{copy.createAccountAction}</Text>
+          <Pressable
+            accessibilityLabel={copy.createAccountLabel}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSubmitting }}
+            disabled={isSubmitting}
+            onPress={handleRegister}
+            style={[styles.submitButton, isSubmitting ? styles.buttonDisabled : null]}
+          >
+            <Text style={styles.submitText}>{isSubmitting ? copy.cadastroLoading : copy.createAccountAction}</Text>
           </Pressable>
           <View style={styles.loginRow}>
             <Text style={styles.loginPrompt}>{copy.loginPrompt}</Text>
@@ -173,6 +187,7 @@ export default function Cadastro({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  buttonDisabled: { opacity: 0.6 },
   screen: { backgroundColor: theme.colors.ink, flex: theme.flex.full },
   headerArea: { 
     backgroundColor: theme.colors.ink,

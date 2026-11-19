@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Image, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import HeartIcon from "../assets/Heart.svg";
+import HeartIcon from "../components/HeartIcon";
+import LoadState from "../components/LoadState";
 import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
 import { useCart } from "../context/CartContext";
@@ -12,7 +13,7 @@ import { goTo } from "../utils/navigation";
 
 export default function Produto({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const { favoriteIds, getProduct, toggleFavorite } = useStore();
+  const { errorMessage, favoriteIds, getProduct, reload, status, toggleFavorite } = useStore();
   const { addItem } = useCart();
   const [selectedSize, setSelectedSize] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
@@ -46,7 +47,7 @@ export default function Produto({ navigation, route }) {
                 onPress={() => toggleFavorite(product.id)}
                 style={styles.favoriteButton}
               >
-                <HeartIcon height={theme.size.icon} opacity={favoriteIds.includes(product.id) ? theme.opacity.favoriteActive : theme.opacity.favoriteIdle} width={theme.size.icon} />
+                <HeartIcon filled={favoriteIds.includes(product.id)} />
               </Pressable>
             </View>
             <View style={styles.details}>
@@ -88,6 +89,8 @@ export default function Produto({ navigation, route }) {
               ) : null}
             </View>
           </View>
+        ) : status !== "ready" ? (
+          <LoadState message={errorMessage} onRetry={reload} status={status} />
         ) : (
           <View style={styles.details}>
             <Text style={styles.name}>{copy.productNotFound}</Text>

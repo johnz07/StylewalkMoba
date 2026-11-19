@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
-import HeartIcon from "../assets/Heart.svg";
+import HeartIcon from "./HeartIcon";
 import BagIcon from "../assets/Shopping-bag.svg";
 import { copy, theme } from "../theme";
 import { formatPrice } from "../utils/format";
@@ -16,19 +16,25 @@ export default function ProductCard({ isFavorite, onAddToBag, onPress, onToggleF
   const category = product.category || copy.running;
   const badgeLabel = product.badge ? copy.badgeLabels[product.badge] : null;
 
+  // O card não é um botão só: foto e textos abrem o produto; favorito e sacola são botões
+  // irmãos (botão dentro de botão é HTML inválido na web).
   return (
-    <Pressable accessibilityLabel={product.name} accessibilityRole="button" onPress={onPress} style={[styles.card, isCatalog ? styles.catalogCard : null]}>
+    <View style={[styles.card, isCatalog ? styles.catalogCard : null]}>
       <View style={[styles.imageFrame, isCatalog ? styles.catalogImageFrame : null]}>
-        <Image accessibilityLabel={product.name} source={product.image} style={styles.image} />
-        <View style={[styles.tag, isCatalog ? styles.catalogTag : null]}><Text style={styles.tagText}>{category}</Text></View>
-        {badgeLabel ? <View style={[styles.newTag, isCatalog ? styles.catalogNewTag : null]}><Text style={styles.tagText}>{badgeLabel}</Text></View> : null}
+        <Pressable accessibilityLabel={product.name} accessibilityRole="button" onPress={onPress} style={styles.imageButton}>
+          <Image accessibilityLabel={product.name} source={product.image} style={styles.image} />
+        </Pressable>
+        <View pointerEvents="none" style={[styles.tag, isCatalog ? styles.catalogTag : null]}><Text style={styles.tagText}>{category}</Text></View>
+        {badgeLabel ? <View pointerEvents="none" style={[styles.newTag, isCatalog ? styles.catalogNewTag : null]}><Text style={styles.tagText}>{badgeLabel}</Text></View> : null}
         <Pressable accessibilityLabel={favoriteLabel} accessibilityRole="button" onPress={onToggleFavorite} style={[styles.favoriteButton, isCatalog ? styles.catalogFavoriteButton : null]}>
-          <HeartIcon height={isCatalog ? theme.lancamentos.size.favoriteIcon : theme.size.icon} opacity={isFavorite ? theme.opacity.favoriteActive : theme.opacity.favoriteIdle} width={isCatalog ? theme.lancamentos.size.favoriteIcon : theme.size.icon} />
+          <HeartIcon filled={isFavorite} size={isCatalog ? theme.lancamentos.size.favoriteIcon : theme.size.icon} />
         </Pressable>
       </View>
       <View style={[styles.details, isCatalog ? styles.catalogDetails : null]}>
-        <Text numberOfLines={1} style={[styles.title, isCatalog ? styles.catalogTitle : null]}>{product.name}</Text>
-        <Text numberOfLines={2} style={[styles.description, isCatalog ? styles.catalogDescription : null]}>{product.description}</Text>
+        <Pressable onPress={onPress} style={[styles.textButton, isCatalog ? styles.catalogTextButton : null]}>
+          <Text numberOfLines={1} style={[styles.title, isCatalog ? styles.catalogTitle : null]}>{product.name}</Text>
+          <Text numberOfLines={2} style={[styles.description, isCatalog ? styles.catalogDescription : null]}>{product.description}</Text>
+        </Pressable>
         <View style={[styles.priceRow, isCatalog ? styles.catalogPriceRow : null]}>
           <Text style={[styles.price, isCatalog ? styles.catalogPrice : null]}>{formatPrice(product.price)}</Text>
           <Pressable accessibilityLabel={copy.addToBagLabel} accessibilityRole="button" onPress={onAddToBag} style={[styles.bagButton, isCatalog ? styles.catalogBagButton : null]}>
@@ -36,7 +42,7 @@ export default function ProductCard({ isFavorite, onAddToBag, onPress, onToggleF
           </Pressable>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -45,7 +51,10 @@ const styles = StyleSheet.create({
   catalogCard: { borderWidth: theme.spacing.none, borderRadius: theme.spacing.none, elevation: theme.elevation.none, width: "48%", overflow: "visible", shadowOpacity: theme.opacity.none },
   imageFrame: { height: theme.size.productImageHeight, position: "relative" },
   catalogImageFrame: { borderRadius: theme.lancamentos.radius.productImage, height: theme.lancamentos.size.productImageHeight, overflow: "hidden" },
+  imageButton: { height: "100%", width: "100%" },
   image: { height: "100%", resizeMode: "cover", width: "100%" },
+  textButton: { gap: theme.spacing.xs },
+  catalogTextButton: { gap: theme.lancamentos.spacing.productDetailGap },
   tag: { backgroundColor: theme.colors.ink, borderRadius: theme.radius.pill, left: theme.spacing.md, paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xs, position: "absolute", top: theme.spacing.md },
   catalogTag: { borderRadius: theme.lancamentos.radius.tag, left: theme.lancamentos.spacing.tagInset, paddingHorizontal: theme.lancamentos.spacing.tagHorizontal, paddingVertical: theme.lancamentos.spacing.tagVertical, top: theme.lancamentos.spacing.tagInset },
   newTag: { backgroundColor: theme.colors.ink, borderRadius: theme.radius.pill, bottom: theme.spacing.md, left: theme.spacing.md, paddingHorizontal: theme.spacing.sm, paddingVertical: theme.spacing.xs, position: "absolute" },

@@ -5,39 +5,56 @@ import BoxIcon from "../assets/box.svg";
 import LogoutIcon from "../assets/log-out.svg";
 import PlusCircleIcon from "../assets/plus-circle.svg";
 import AdminInventoryCard from "../components/AdminInventoryCard";
+import AdminOptionField from "../components/AdminOptionField";
 import AdminTextField from "../components/AdminTextField";
+import LoadState from "../components/LoadState";
 import RequireAuth from "../components/RequireAuth";
 import { useAuth } from "../context/AuthContext";
 import { useStore } from "../context/StoreContext";
-import { defaultSizes, placeholderImage } from "../data/products";
+import { badges } from "../data/products";
 import { copy, theme } from "../theme";
+import { confirmAction } from "../utils/confirm";
 import { formatPrice, parsePrice } from "../utils/format";
 
 const initialFormValues = {
   name: "",
-  category: "",
+  categoryId: null,
+  badge: null,
+  featured: false,
   imageUrl: "",
   price: "",
   description: "",
 };
 
+const badgeOptions = [{ value: null, label: copy.adminBadgeNone }, ...badges.map((badge) => ({ value: badge, label: copy.badgeLabels[badge] }))];
+const featuredOptions = [{ value: true, label: copy.adminFeaturedYes }, { value: false, label: copy.adminFeaturedNo }];
+
 function AdminContent({ navigation }) {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { deleteProduct: removeProduct, products: inventoryItems, saveProduct } = useStore();
+  const { categories, deleteProduct: removeProduct, errorMessage, products: inventoryItems, reload, saveProduct, status } = useStore();
   const [formValues, setFormValues] = useState(initialFormValues);
-  const [editingItemId, setEditingItemId] = useState("");
+  const [editingItemId, setEditingItemId] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const categoryOptions = categories.map((category) => ({ value: category.id, label: category.name }));
 
   const updateField = useCallback((field, value) => {
     setFormValues((currentValues) => ({ ...currentValues, [field]: value }));
+  }, []);
+
+  const resetForm = useCallback(() => {
+    setEditingItemId(null);
+    setFormValues(initialFormValues);
   }, []);
 
   const editProduct = useCallback((item) => {
     setEditingItemId(item.id);
     setFormValues({
       name: item.name,
-      category: item.category,
+      categoryId: item.categoryId,
+      badge: item.badge,
+      featured: item.featured,
       imageUrl: item.imageUrl || "",
       price: formatPrice(item.price),
       description: item.description,
@@ -45,40 +62,52 @@ function AdminContent({ navigation }) {
     setStatusMessage(copy.adminEditFeedback);
   }, []);
 
-  const deleteProduct = useCallback((itemId) => {
-    removeProduct(itemId);
-    if (editingItemId === itemId) {
-      setEditingItemId("");
-      setFormValues(initialFormValues);
+  // Excluir (DELETE /produtos/:id): pede confirmação e remove da loja na hora.
+  const deleteProduct = useCallback(async (item) => {
+    if (!(await confirmAction(copy.adminDeleteConfirm(item.name), { confirmLabel: copy.adminDelete }))) {
+      return;
     }
-    setStatusMessage(copy.adminDeleteFeedback);
-  }, [editingItemId, removeProduct]);
+    try {
+      await removeProduct(item.id);
+      if (editingItemId === item.id) resetForm();
+      setStatusMessage(copy.adminDeleteFeedback);
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  }, [editingItemId, removeProduct, resetForm]);
 
-  // Salva no catálogo compartilhado: o produto aparece/atualiza na loja na hora.
-  const addProduct = useCallback(() => {
+  // Inserir (POST) ou alterar (PUT) no banco; a loja já mostra o resultado.
+  const submitProduct = useCallback(async () => {
     if (!formValues.name.trim()) {
       setStatusMessage(copy.adminNameRequired);
       return;
     }
+    if (!formValues.price.trim()) {
+      setStatusMessage(copy.adminPriceInvalid);
+      return;
+    }
 
-    const imageUrl = formValues.imageUrl.trim();
     const currentItem = inventoryItems.find((item) => item.id === editingItemId);
-    saveProduct({
-      id: editingItemId || `produto-${Date.now()}`,
-      name: formValues.name.trim(),
-      category: formValues.category.trim(),
-      description: formValues.description.trim(),
-      price: parsePrice(formValues.price),
-      imageUrl,
-      image: imageUrl ? { uri: imageUrl } : currentItem?.image || placeholderImage,
-      featured: currentItem?.featured || false,
-      badge: currentItem?.badge || null,
-      sizes: currentItem?.sizes || defaultSizes,
-    });
-    setEditingItemId("");
-    setFormValues(initialFormValues);
-    setStatusMessage(editingItemId ? copy.adminUpdateFeedback : copy.adminAddFeedback);
-  }, [editingItemId, formValues, inventoryItems, saveProduct]);
+    setIsSaving(true);
+    try {
+      await saveProduct(editingItemId, {
+        name: formValues.name.trim(),
+        categoryId: formValues.categoryId,
+        badge: formValues.badge,
+        featured: formValues.featured,
+        description: formValues.description.trim(),
+        price: parsePrice(formValues.price),
+        imageUrl: formValues.imageUrl.trim(),
+        sizes: currentItem?.sizes,
+      });
+      setStatusMessage(editingItemId ? copy.adminUpdateFeedback : copy.adminAddFeedback);
+      resetForm();
+    } catch (error) {
+      setStatusMessage(error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editingItemId, formValues, inventoryItems, resetForm, saveProduct]);
 
   const handleLogout = useCallback(() => {
     // Limpa a pilha para não ser possível voltar ao painel depois de sair.
@@ -113,13 +142,22 @@ function AdminContent({ navigation }) {
           </View>
           <View style={styles.fields}>
             <AdminTextField label={copy.adminNameLabel} onChangeText={(value) => updateField("name", value)} placeholder={copy.adminNamePlaceholder} value={formValues.name} />
-            <AdminTextField label={copy.adminCategoryLabel} onChangeText={(value) => updateField("category", value)} placeholder={copy.adminCategoryPlaceholder} value={formValues.category} />
+            <AdminOptionField label={copy.adminCategoryLabel} onSelect={(value) => updateField("categoryId", value)} options={categoryOptions} value={formValues.categoryId} />
+            <AdminOptionField label={copy.adminBadgeLabel} onSelect={(value) => updateField("badge", value)} options={badgeOptions} value={formValues.badge} />
+            <AdminOptionField label={copy.adminFeaturedLabel} onSelect={(value) => updateField("featured", value)} options={featuredOptions} value={formValues.featured} />
             <AdminTextField label={copy.adminImageUrlLabel} onChangeText={(value) => updateField("imageUrl", value)} placeholder={copy.adminImageUrlPlaceholder} value={formValues.imageUrl} />
             <AdminTextField label={copy.adminPriceLabel} onChangeText={(value) => updateField("price", value)} placeholder={copy.adminPricePlaceholder} value={formValues.price} />
             <AdminTextField label={copy.adminDescriptionLabel} multiline onChangeText={(value) => updateField("description", value)} placeholder={copy.adminDescriptionPlaceholder} value={formValues.description} />
           </View>
-          <Pressable accessibilityLabel={copy.adminAddProductLabel} accessibilityRole="button" onPress={addProduct} style={styles.submitButton}>
-            <Text style={styles.submitText}>{editingItemId ? copy.adminSaveProductAction : copy.adminAddProductAction}</Text>
+          <Pressable
+            accessibilityLabel={copy.adminAddProductLabel}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSaving }}
+            disabled={isSaving}
+            onPress={submitProduct}
+            style={[styles.submitButton, isSaving ? styles.submitButtonDisabled : null]}
+          >
+            <Text style={styles.submitText}>{isSaving ? copy.adminSaving : editingItemId ? copy.adminSaveProductAction : copy.adminAddProductAction}</Text>
           </Pressable>
           {statusMessage ? <Text accessibilityLiveRegion="polite" style={styles.status}>{statusMessage}</Text> : null}
         </View>
@@ -131,11 +169,15 @@ function AdminContent({ navigation }) {
           </View>
           <Text style={styles.inventoryCount}>{copy.adminItemCount(inventoryItems.length)}</Text>
         </View>
-        <View style={styles.inventoryList}>
-          {inventoryItems.map((item) => (
-            <AdminInventoryCard item={item} key={item.id} onDelete={() => deleteProduct(item.id)} onEdit={() => editProduct(item)} />
-          ))}
-        </View>
+        {status === "ready" ? (
+          <View style={styles.inventoryList}>
+            {inventoryItems.map((item) => (
+              <AdminInventoryCard item={item} key={item.id} onDelete={() => deleteProduct(item)} onEdit={() => editProduct(item)} />
+            ))}
+          </View>
+        ) : (
+          <LoadState message={errorMessage} onRetry={reload} status={status} />
+        )}
       </ScrollView>
     </View>
   );
@@ -225,6 +267,9 @@ const styles = StyleSheet.create({
     height: theme.admin.size.submitHeight,
     justifyContent: "center",
     marginTop: theme.admin.spacing.fieldsToSubmit,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitText: {
     color: theme.colors.adminHeaderText,
