@@ -80,4 +80,9 @@ export const api = {
   createProduct: (product) => request("/produtos", { method: "POST", body: product }),
   updateProduct: (id, product) => request(`/produtos/${id}`, { method: "PUT", body: product }),
   deleteProduct: (id) => request(`/produtos/${id}`, { method: "DELETE" }),
+
+  // Adicionar a rota de cupons aqui:
+  getCoupon: (codigo) => request(`/cupons/${codigo}`),
+
+  exportReport: () => request("/relatorios/export"),
 };

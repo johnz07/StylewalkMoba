@@ -7,6 +7,7 @@ import StoreHeader from "../components/StoreHeader";
 import { useAuth } from "../context/AuthContext";
 import { copy, theme } from "../theme";
 import { finishAuth } from "../utils/navigation";
+import { maskCPF, maskPhone, maskCEP, maskDate, fetchAddressByCEP, openCorreiosCEP } from '../utils/masks';
 
 function EyeIcon() {
   return (
@@ -37,6 +38,40 @@ export default function Cadastro({ navigation, route }) {
   const updateField = (fieldName) => (value) => {
     setFormValues((currentValues) => ({ ...currentValues, [fieldName]: value }));
     setErrorMessage("");
+  };
+
+  // Tratamento específico de campos com máscara e ViaCEP
+  const handleCpfChange = (value) => {
+    updateField("cpf")(maskCPF(value));
+  };
+
+  const handlePhoneChange = (value) => {
+    updateField("phone")(maskPhone(value));
+  };
+
+  const handleBirthDateChange = (value) => {
+    updateField("birthDate")(maskDate(value));
+  };
+
+  const handleCepChange = async (value) => {
+    const maskedCep = maskCEP(value);
+    updateField("zipCode")(maskedCep);
+
+    // Se o CEP estiver completo (8 dígitos), busca no ViaCEP automaticamente
+    const cleanCep = maskedCep.replace(/\D/g, "");
+    if (cleanCep.length === 8) {
+      const address = await fetchAddressByCEP(cleanCep);
+      if (address) {
+        setFormValues((currentValues) => ({
+          ...currentValues,
+          zipCode: maskedCep,
+          street: address.logradouro || currentValues.street || "",
+          district: address.bairro || currentValues.district || "",
+          city: address.localidade || currentValues.city || "",
+          state: address.uf || currentValues.state || "",
+        }));
+      }
+    }
   };
 
   const fieldProps = (fieldName, label, placeholder, inputProps = {}) => ({
@@ -123,19 +158,56 @@ export default function Cadastro({ navigation, route }) {
               <FormTextField containerStyle={styles.halfField} {...fieldProps("firstName", copy.firstNameLabel, copy.firstNamePlaceholder)} />
               <FormTextField containerStyle={styles.halfField} {...fieldProps("lastName", copy.lastNameLabel, copy.lastNamePlaceholder)} />
             </View>
-            <FormTextField {...fieldProps("cpf", copy.cpfLabel, copy.cpfPlaceholder, { keyboardType: "numeric" })} />
-            <FormTextField {...fieldProps("birthDate", copy.birthDateLabel, copy.birthDatePlaceholder, { keyboardType: "numeric" })} />
+
+            {/* CPF com Máscara */}
+            <FormTextField
+              label={copy.cpfLabel}
+              onChangeText={handleCpfChange}
+              placeholder={copy.cpfPlaceholder}
+              value={formValues["cpf"] || ""}
+              inputProps={{ keyboardType: "numeric" }}
+            />
+
+            {/* Data de Nascimento com Máscara */}
+            <FormTextField
+              label={copy.birthDateLabel}
+              onChangeText={handleBirthDateChange}
+              placeholder={copy.birthDatePlaceholder}
+              value={formValues["birthDate"] || ""}
+              inputProps={{ keyboardType: "numeric" }}
+            />
+
             <FormTextField {...fieldProps("email", copy.emailLabel, copy.emailPlaceholder, { autoCapitalize: "none", keyboardType: "email-address" })} />
-            <FormTextField {...fieldProps("phone", copy.phoneLabel, copy.phonePlaceholder, { keyboardType: "phone-pad" })} />
+
+            {/* Telefone com Máscara */}
+            <FormTextField
+              label={copy.phoneLabel}
+              onChangeText={handlePhoneChange}
+              placeholder={copy.phonePlaceholder}
+              value={formValues["phone"] || ""}
+              inputProps={{ keyboardType: "phone-pad" }}
+            />
           </View>
 
           <Text style={styles.sectionTitle}>{copy.deliveryTitle}</Text>
           <View style={styles.fieldList}>
             <View style={styles.labelRow}>
               <Text style={styles.label}>{copy.zipCodeLabel}</Text>
-              <Pressable accessibilityRole="button"><Text style={styles.zipLink}>{copy.zipCodeHelp}</Text></Pressable>
+              {/* Botão "Não sei meu CEP" integrado com WebBrowser dos Correios */}
+              <Pressable accessibilityRole="button" onPress={openCorreiosCEP}>
+                <Text style={styles.zipLink}>{copy.zipCodeHelp}</Text>
+              </Pressable>
             </View>
-            <FormTextField containerStyle={styles.fieldWithoutLabel} {...fieldProps("zipCode", "", copy.zipCodePlaceholder, { keyboardType: "numeric" })} />
+
+            {/* CEP com Máscara e Consulta Automática ViaCEP */}
+            <FormTextField
+              containerStyle={styles.fieldWithoutLabel}
+              onChangeText={handleCepChange}
+              placeholder={copy.zipCodePlaceholder}
+              value={formValues["zipCode"] || ""}
+              inputProps={{ keyboardType: "numeric" }}
+            />
+
             <FormTextField {...fieldProps("street", copy.addressLabel, copy.addressPlaceholder)} />
             <View style={styles.fieldRow}>
               <FormTextField containerStyle={styles.halfField} {...fieldProps("number", copy.numberLabel, copy.numberPlaceholder, { keyboardType: "numeric" })} />

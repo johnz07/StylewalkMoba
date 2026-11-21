@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -58,6 +59,14 @@ export default function Login({ navigation, route }) {
     }
   };
 
+ // "Esqueci minha senha" - Aviso orientando contato com o suporte
+  const handleForgotPassword = () => {
+    Alert.alert(
+      "Recuperação de Senha",
+      "Para redefinir sua senha, entre em contato com o suporte técnico da StyleWalk através do e-mail suporte@stylewalk.com.br."
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.select({ ios: "padding", default: undefined })}
@@ -104,9 +113,12 @@ export default function Login({ navigation, route }) {
           />
         </View>
 
-        <Text accessibilityRole="text" style={styles.recoveryLink}>
-          {copy.forgotPassword}
-        </Text>
+        {/* Link "Esqueci minha senha" interativo com Alert */}
+        <Pressable accessibilityRole="button" onPress={handleForgotPassword}>
+          <Text accessibilityRole="text" style={styles.recoveryLink}>
+            {copy.forgotPassword}
+          </Text>
+        </Pressable>
 
         {errorMessage ? <Text accessibilityLiveRegion="polite" style={styles.error}>{errorMessage}</Text> : null}
 

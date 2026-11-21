@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ArrowRightIcon from "../assets/arrow-right.svg";
 import CartItem from "../components/CartItem";
@@ -7,6 +7,7 @@ import StoreFooter from "../components/StoreFooter";
 import StoreHeader from "../components/StoreHeader";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { api } from "../services/api";
 import { copy, theme } from "../theme";
 import { formatPrice } from "../utils/format";
 import { goTo } from "../utils/navigation";
@@ -17,27 +18,56 @@ export default function Carrinho({ navigation }) {
   const { changeQuantity, itemCount, items: cartItems, removeItem, subtotal } = useCart();
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [discountPercent, setDiscountPercent] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
 
-  const applyCoupon = useCallback(() => {
-    const normalizedCoupon = couponCode.trim();
-    setAppliedCoupon(normalizedCoupon);
-    setStatusMessage(normalizedCoupon ? copy.cartCouponApplied : copy.cartCouponRequired);
+  // Integração do cupom real via API GET /cupons/:codigo
+  const applyCoupon = useCallback(async () => {
+    const normalizedCoupon = couponCode.trim().toUpperCase();
+    if (!normalizedCoupon) {
+      setAppliedCoupon("");
+      setDiscountPercent(0);
+      setStatusMessage(copy.cartCouponRequired);
+      return;
+    }
+
+    try {
+      const response = await api.getCoupon(normalizedCoupon);
+      const cupom = response; // { codigo, percentual, ativo }
+
+      if (cupom && cupom.ativo) {
+        setAppliedCoupon(cupom.codigo);
+        setDiscountPercent(cupom.percentual);
+        setStatusMessage(`Cupom ${cupom.codigo} de ${cupom.percentual}% aplicado com sucesso!`);
+      } else {
+        setAppliedCoupon("");
+        setDiscountPercent(0);
+        setStatusMessage("Cupom inativo.");
+      }
+    } catch (error) {
+      setAppliedCoupon("");
+      setDiscountPercent(0);
+      setStatusMessage("Cupom inválido ou expirado.");
+    }
   }, [couponCode]);
+
+  const discountAmount = (subtotal * discountPercent) / 100;
+  const finalTotal = Math.max(0, subtotal - discountAmount);
 
   // Carrinho é público; o login só é exigido aqui, ao finalizar a compra.
   const checkout = useCallback(() => {
     if (!cartItems.length) {
       setAppliedCoupon("");
+      setDiscountPercent(0);
       setStatusMessage(copy.cartEmptyFeedback);
       return;
     }
     if (user) {
-      navigation.navigate("Checkout");
+      navigation.navigate("Checkout", { discountPercent, appliedCoupon });
     } else {
       navigation.navigate("Login", { redirectTo: "Checkout" });
     }
-  }, [cartItems.length, navigation, user]);
+  }, [cartItems.length, navigation, user, discountPercent, appliedCoupon]);
 
   return (
     <View style={styles.screen}>
@@ -66,6 +96,7 @@ export default function Carrinho({ navigation }) {
           <View style={styles.couponRow}>
             <TextInput
               accessibilityLabel={copy.cartCouponInputLabel}
+              autoCapitalize="characters"
               onChangeText={setCouponCode}
               placeholder={copy.cartCouponPlaceholder}
               placeholderTextColor={theme.colors.cartPlaceholder}
@@ -76,7 +107,7 @@ export default function Carrinho({ navigation }) {
               <Text style={styles.couponButtonText}>{copy.cartApplyCoupon}</Text>
             </Pressable>
           </View>
-          {appliedCoupon ? <Text accessibilityLiveRegion="polite" style={styles.couponFeedback}>{statusMessage}</Text> : null}
+          {statusMessage ? <Text accessibilityLiveRegion="polite" style={[styles.couponFeedback, appliedCoupon ? null : styles.statusWarning]}>{statusMessage}</Text> : null}
 
           <View style={styles.summary}>
             <Text style={styles.summaryTitle}>{copy.cartSummaryTitle}</Text>
@@ -84,20 +115,25 @@ export default function Carrinho({ navigation }) {
               <Text style={styles.summaryLabel}>{copy.cartSubtotal}</Text>
               <Text style={styles.summaryValue}>{formatPrice(subtotal)}</Text>
             </View>
+            {discountPercent > 0 ? (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Desconto ({discountPercent}%)</Text>
+                <Text style={styles.deliveryValue}>- {formatPrice(discountAmount)}</Text>
+              </View>
+            ) : null}
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{copy.cartDelivery}</Text>
               <Text style={styles.deliveryValue}>{copy.cartFreeDelivery}</Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>{copy.cartTotal}</Text>
-              <Text style={styles.totalValue}>{formatPrice(subtotal)}</Text>
+              <Text style={styles.totalValue}>{formatPrice(finalTotal)}</Text>
             </View>
           </View>
 
           <Pressable accessibilityLabel={copy.cartCheckoutLabel} accessibilityRole="button" onPress={checkout} style={styles.checkoutButton}>
             <Text style={styles.checkoutText}>{copy.cartCheckout}</Text>
           </Pressable>
-          {statusMessage && !appliedCoupon ? <Text accessibilityLiveRegion="polite" style={[styles.status, styles.statusWarning]}>{statusMessage}</Text> : null}
           {user ? null : <Text style={styles.loginHint}>{copy.cartLoginHint}</Text>}
           <Pressable accessibilityLabel={copy.cartContinueShoppingLabel} accessibilityRole="button" onPress={() => goTo(navigation, "Home")} style={styles.continueShopping}>
             <Text style={styles.continueShoppingText}>{copy.cartContinueShopping}</Text>
@@ -235,12 +271,6 @@ const styles = StyleSheet.create({
   checkoutText: {
     color: theme.colors.cartCard,
     ...theme.typography.cartCheckout,
-  },
-  status: {
-    color: theme.colors.cartSuccess,
-    marginTop: theme.cart.spacing.feedbackTop,
-    textAlign: "center",
-    ...theme.typography.cartFeedback,
   },
   statusWarning: {
     color: theme.colors.danger,
