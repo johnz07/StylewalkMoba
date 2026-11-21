@@ -53,16 +53,53 @@ export default function Lancamentos({ navigation, route }) {
   const { categories: categoryList, errorMessage, favoriteIds, products, reload, status, toggleFavorite } = useStore();
   const categories = categoryList.map((item) => item.name);
   const [isFilterOpen, setIsFilterOpen] = useState(Boolean(category || badge));
+  
+  // Estados de ordenação atualizados: 'newest' | 'price-asc' | 'price-desc' | 'alphabetical'
   const [sortOrder, setSortOrder] = useState("newest");
   const [statusMessage, setStatusMessage] = useState("");
 
   const visibleProducts = useMemo(() => {
-    const filteredProducts = products.filter((product) => (!category || product.category === category) && (!badge || product.badge === badge));
-    return sortOrder === "alphabetical" ? [...filteredProducts].sort((first, second) => first.name.localeCompare(second.name)) : filteredProducts;
+    let filteredProducts = products.filter((product) => (!category || product.category === category) && (!badge || product.badge === badge));
+    
+    if (sortOrder === "price-asc") {
+      return [...filteredProducts].sort((a, b) => Number(a.price) - Number(b.price));
+    }
+    if (sortOrder === "price-desc") {
+      return [...filteredProducts].sort((a, b) => Number(b.price) - Number(a.price));
+    }
+    if (sortOrder === "alphabetical") {
+      return [...filteredProducts].sort((first, second) => first.name.localeCompare(second.name));
+    }
+    return filteredProducts;
   }, [badge, category, products, sortOrder]);
+
   const title = [badge ? copy.badgeTitles[badge] : null, category].filter(Boolean).join(" · ") || copy.catalogTitle;
   const openFilters = useCallback(() => setIsFilterOpen((currentValue) => !currentValue), []);
-  const toggleSort = useCallback(() => setSortOrder((currentOrder) => { const nextOrder = currentOrder === "newest" ? "alphabetical" : "newest"; setStatusMessage(nextOrder === "alphabetical" ? copy.sortAscending : copy.sortDescending); return nextOrder; }), []);
+  
+  // Alternância cíclica do botão Ordenar entre os critérios
+  const toggleSort = useCallback(() => {
+    setSortOrder((currentOrder) => {
+      let nextOrder = "newest";
+      let message = "Ordenação padrão (Lançamentos)";
+
+      if (currentOrder === "newest") {
+        nextOrder = "price-asc";
+        message = "Ordenado por: Menor Preço";
+      } else if (currentOrder === "price-asc") {
+        nextOrder = "price-desc";
+        message = "Ordenado por: Maior Preço";
+      } else if (currentOrder === "price-desc") {
+        nextOrder = "alphabetical";
+        message = "Ordenado por: Nome (A-Z)";
+      } else {
+        nextOrder = "newest";
+        message = "Ordenado por: Mais Recentes";
+      }
+
+      setStatusMessage(message);
+      return nextOrder;
+    });
+  }, []);
 
   const openProduct = useCallback((product) => navigation.navigate("Produto", { productId: product.id }), [navigation]);
 

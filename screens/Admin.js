@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from "react";
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import BoxIcon from "../assets/box.svg";
 import LogoutIcon from "../assets/log-out.svg";
 import PlusCircleIcon from "../assets/plus-circle.svg";
@@ -12,6 +14,7 @@ import RequireAuth from "../components/RequireAuth";
 import { useAuth } from "../context/AuthContext";
 import { useStore } from "../context/StoreContext";
 import { badges } from "../data/products";
+import { api } from "../services/api";
 import { copy, theme } from "../theme";
 import { confirmAction } from "../utils/confirm";
 import { formatPrice, parsePrice } from "../utils/format";
@@ -36,6 +39,7 @@ function AdminContent({ navigation }) {
   const [formValues, setFormValues] = useState(initialFormValues);
   const [editingItemId, setEditingItemId] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const categoryOptions = categories.map((category) => ({ value: category.id, label: category.name }));
 
@@ -109,8 +113,39 @@ function AdminContent({ navigation }) {
     }
   }, [editingItemId, formValues, inventoryItems, resetForm, saveProduct]);
 
+  // Função para exportar os dados em JSON para o Dashboard (Etapa 5 / 2.2)[cite: 1]
+  const handleExportJson = async () => {
+    try {
+      setExportStatus("Gerando relatório JSON...");
+      const data = await api.exportReport();
+      const jsonString = JSON.stringify(data, null, 2);
+
+      if (Platform.OS === "web") {
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `stylewalk-relatorio-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExportStatus("Relatório baixado com sucesso!");
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}stylewalk-relatorio.json`;
+        await FileSystem.writeAsStringAsync(fileUri, jsonString, { encoding: FileSystem.EncodingType.UTF8 });
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+          setExportStatus("Relatório compartilhado com sucesso!");
+        } else {
+          setExportStatus("Compartilhamento indisponível neste dispositivo.");
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      setExportStatus("Erro ao exportar o relatório.");
+    }
+  };
+
   const handleLogout = useCallback(() => {
-    // Limpa a pilha para não ser possível voltar ao painel depois de sair.
     navigation.reset({ index: 0, routes: [{ name: "Home" }] });
     logout();
   }, [logout, navigation]);
@@ -119,7 +154,6 @@ function AdminContent({ navigation }) {
     <View style={styles.screen}>
       <StatusBar backgroundColor={theme.colors.adminHeader} barStyle="light-content" />
       
-      {/* Cabeçalho com preenchimento seguro de status bar */}
       <View style={[styles.header, { paddingTop: insets.top, height: theme.admin.size.headerHeight + insets.top }]}>
         <View style={styles.brandGroup}>
           <Text style={styles.brand}>{copy.brand}</Text>
@@ -167,8 +201,14 @@ function AdminContent({ navigation }) {
             <BoxIcon height={theme.admin.size.inventoryIcon} width={theme.admin.size.inventoryIcon} />
             <Text style={styles.inventoryTitle}>{copy.adminInventory}</Text>
           </View>
-          <Text style={styles.inventoryCount}>{copy.adminItemCount(inventoryItems.length)}</Text>
+          {/* Botão de Exportar JSON */}
+          <Pressable accessibilityRole="button" onPress={handleExportJson} style={styles.exportButton}>
+            <Text style={styles.exportButtonText}>Exportar JSON</Text>
+          </Pressable>
         </View>
+        {exportStatus ? <Text style={styles.status}>{exportStatus}</Text> : null}
+        <Text style={styles.inventoryCount}>{copy.adminItemCount(inventoryItems.length)}</Text>
+
         {status === "ready" ? (
           <View style={styles.inventoryList}>
             {inventoryItems.map((item) => (
@@ -299,6 +339,17 @@ const styles = StyleSheet.create({
   inventoryCount: {
     color: theme.colors.adminMuted,
     ...theme.admin.typography.inventoryCount,
+  },
+  exportButton: {
+    backgroundColor: theme.colors.adminBrand,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  exportButtonText: {
+    color: theme.colors.adminHeaderText,
+    fontWeight: "bold",
+    fontSize: 12,
   },
   inventoryList: {
     gap: theme.admin.spacing.inventoryGap,
