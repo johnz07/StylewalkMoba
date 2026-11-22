@@ -10,6 +10,8 @@ import { copy, theme } from "../theme";
 import { formatPrice } from "../utils/format";
 import { maskCEP, fetchAddressByCEP, openCorreiosCEP } from "../utils/masks";
 import { goTo } from "../utils/navigation";
+import { Linking } from "react-native";
+import { api } from "../services/api";
 
 const emptyAddress = { zipCode: "", street: "", number: "", complement: "", district: "", city: "", state: "" };
 
@@ -62,16 +64,38 @@ function CheckoutContent({ navigation, route }) {
     }
   };
 
-  const confirmOrder = () => {
+  const confirmOrder = async () => {
     if (!address.zipCode.trim() || !address.street.trim() || !address.number.trim() || !address.city.trim()) {
       setErrorMessage(copy.checkoutAddressRequired);
       return;
     }
-    // TODO: aqui entra a integração com o Mercado Pago (criar preferência no backend e abrir o checkout).
-    const orderId = `SW-${String(Date.now()).slice(-6)}`;
-    const total = finalTotal;
-    clearCart();
-    navigation.reset({ index: 1, routes: [{ name: "Home" }, { name: "PedidoConfirmado", params: { orderId, total } }] });
+
+    try {
+      setErrorMessage("");
+      // Chama o endpoint do backend para registrar o pedido e gerar o link do Mercado Pago
+      const response = await api.createOrder({
+        items,
+        couponCode: appliedCoupon,
+        address,
+      });
+
+      const paymentUrl = response.sandbox_init_point || response.init_point;
+
+      if (paymentUrl) {
+        // Abre o link de pagamento do Mercado Pago (funciona no browser e no mobile)
+        const supported = await Linking.canOpenURL(paymentUrl);
+        if (supported) {
+          await Linking.openURL(paymentUrl);
+        }
+      }
+
+      const orderId = response.orderId;
+      const total = finalTotal;
+      clearCart();
+      navigation.reset({ index: 1, routes: [{ name: "Home" }, { name: "PedidoConfirmado", params: { orderId, total } }] });
+    } catch (error) {
+      setErrorMessage("Erro ao processar o pagamento com o Mercado Pago. Tente novamente.");
+    }
   };
 
   return (
