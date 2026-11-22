@@ -85,4 +85,7 @@ export const api = {
   getCoupon: (codigo) => request(`/cupons/${codigo}`),
 
   exportReport: () => request("/relatorios/export"),
+
+  // Criar pedido e gerar preferência de pagamento (Etapa 6)
+  createOrder: (payload) => request("/pedidos", { method: "POST", body: payload }),
 };
