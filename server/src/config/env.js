@@ -14,4 +14,6 @@ module.exports = {
   databaseSsl: process.env.DATABASE_SSL === "true",
   jwtSecret: required("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  // Access Token de teste do Mercado Pago (só é exigido na hora de criar o pagamento).
+  mpAccessToken: process.env.MP_ACCESS_TOKEN || "",
 };

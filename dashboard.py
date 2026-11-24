@@ -1,33 +1,35 @@
 import streamlit as st
 import pandas as pd
 import requests
-import json
+import os
 
 st.set_page_config(page_title="StyleWalk - Dashboard de Vendas", page_icon="👟", layout="wide")
 
 st.title("👟 StyleWalk - Dashboard Gerencial e Estatístico")
 st.markdown("Painel analítico integrado ao backend do e-commerce para acompanhamento de pedidos, faturamento e catálogo.")
 
-# URL do endpoint de exportação JSON da API (ou você pode carregar um arquivo .json local)
-API_URL = "http://localhost:3000/api/relatorios/export"
+# Endereço da API e conta de administrador (a rota de exportação é restrita ao admin).
+# Os valores padrão são os do banco de desenvolvimento (npm run db:setup); sobrescreva por variável de ambiente.
+API_URL = os.getenv("STYLEWALK_API_URL", "http://localhost:3000").rstrip("/")
+ADMIN_EMAIL = os.getenv("STYLEWALK_ADMIN_EMAIL", "admin@admin.com.br")
+ADMIN_PASSWORD = os.getenv("STYLEWALK_ADMIN_PASSWORD", "0000")
 
-@st.cache_data
+EMPTY_DATA = {"categorias": [], "produtos": [], "pedidos": [], "itens_pedido": []}
+
+
+@st.cache_data(ttl=60)
 def load_data():
     try:
-        # Se preferir testar com token de admin, ou se a rota for pública/local:
-        response = requests.get(API_URL)
-        if response.status_code == 200:
-            return response.json()
+        login = requests.post(f"{API_URL}/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=10)
+        login.raise_for_status()
+        token = login.json()["token"]
+        response = requests.get(f"{API_URL}/relatorios/export", headers={"Authorization": f"Bearer {token}"}, timeout=10)
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
-        st.warning(f"Não foi possível conectar à API local ({e}). Carregando estrutura de exemplo/vazia.")
-    
-    # Fallback estruturado caso a API exija token no momento do teste
-    return {
-        "categorias": [],
-        "produtos": [],
-        "pedidos": [],
-        "itens_pedido": []
-    }
+        st.warning(f"Não foi possível carregar os dados da API ({e}). Exibindo o painel vazio.")
+        return EMPTY_DATA
+
 
 data = load_data()
 

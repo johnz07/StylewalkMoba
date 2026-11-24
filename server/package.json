@@ -9,7 +9,10 @@
     "dev": "nodemon src/index.js",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "db:setup": "node db/setup.js"
+    "db:setup": "node db/setup.js",
+    "test": "jest --runInBand",
+    "test:unit": "jest --selectProjects unit",
+    "test:integration": "jest --selectProjects integration --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -21,6 +24,8 @@
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.3.2"
   }
 }

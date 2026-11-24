@@ -65,7 +65,7 @@ export default function Carrinho({ navigation }) {
     if (user) {
       navigation.navigate("Checkout", { discountPercent, appliedCoupon });
     } else {
-      navigation.navigate("Login", { redirectTo: "Checkout" });
+      navigation.navigate("Login", { redirectTo: "Checkout", redirectParams: { discountPercent, appliedCoupon } });
     }
   }, [cartItems.length, navigation, user, discountPercent, appliedCoupon]);
 

@@ -4,8 +4,8 @@ export function goTo(navigation, routeName, params) {
 }
 
 // Depois de login/cadastro: admin vai para o painel; cliente volta para onde estava
-// (ou segue para a tela que pediu login, ex.: Checkout), tirando Login/Cadastro da pilha.
-export function finishAuth(navigation, user, redirectTo) {
+// (ou segue para a tela que pediu login, ex.: Checkout, com os mesmos parâmetros, como o cupom), tirando Login/Cadastro da pilha.
+export function finishAuth(navigation, user, redirectTo, redirectParams) {
   if (user.role === "admin") {
     navigation.reset({ index: 0, routes: [{ name: "Admin" }] });
     return;
@@ -13,7 +13,7 @@ export function finishAuth(navigation, user, redirectTo) {
 
   const routes = navigation.getState().routes.filter((route) => route.name !== "Login" && route.name !== "Cadastro");
   if (redirectTo) {
-    routes.push({ name: redirectTo });
+    routes.push({ name: redirectTo, params: redirectParams });
   }
   if (!routes.length) {
     routes.push({ name: "Home" });

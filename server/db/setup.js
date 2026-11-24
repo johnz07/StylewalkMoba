@@ -109,6 +109,69 @@ const coupons = [
   { code: "STYLE20", percent: 20 },
 ];
 
+// Destinos dos pedidos fictícios (histórico para o dashboard ter dados).
+const deliveryCities = [
+  { zipCode: "01001-000", street: "Praça da Sé", district: "Sé", city: "São Paulo", state: "SP" },
+  { zipCode: "20040-020", street: "Rua da Assembleia", district: "Centro", city: "Rio de Janeiro", state: "RJ" },
+  { zipCode: "30130-010", street: "Avenida Afonso Pena", district: "Centro", city: "Belo Horizonte", state: "MG" },
+  { zipCode: "80010-000", street: "Rua XV de Novembro", district: "Centro", city: "Curitiba", state: "PR" },
+  { zipCode: "90010-000", street: "Rua dos Andradas", district: "Centro Histórico", city: "Porto Alegre", state: "RS" },
+  { zipCode: "40020-000", street: "Avenida Sete de Setembro", district: "Centro", city: "Salvador", state: "BA" },
+];
+
+const SEED_ORDER_COUNT = 60;
+const SEED_ORDER_DAYS = 180;
+
+// Gerador pseudoaleatório com semente fixa: o histórico é sempre o mesmo a cada `db:setup`.
+function createRandom(seed) {
+  let state = seed;
+  return () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Pedidos fictícios dos últimos meses, só para alimentar o dashboard de Análise de Dados.
+async function seedOrders(client, customerId, productRows) {
+  const random = createRandom(2026);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  for (let index = 0; index < SEED_ORDER_COUNT; index += 1) {
+    const lines = Array.from({ length: 1 + Math.floor(random() * 3) }, () => {
+      const product = pick(productRows);
+      return { productId: product.id, size: 37 + Math.floor(random() * 8), quantity: 1 + Math.floor(random() * 2), unitPrice: Number(product.preco) };
+    });
+    const subtotalCents = lines.reduce((sum, line) => sum + Math.round(line.unitPrice * 100) * line.quantity, 0);
+    const coupon = random() < 0.25 ? pick(coupons) : null;
+    const discountCents = coupon ? Math.round((subtotalCents * coupon.percent) / 100) : 0;
+    const roll = random();
+    const status = roll < 0.75 ? "approved" : roll < 0.9 ? "pending" : "rejected";
+    const city = pick(deliveryCities);
+    const createdAt = new Date(Date.now() - Math.floor(random() * SEED_ORDER_DAYS * DAY_MS));
+
+    const { rows } = await client.query(
+      `INSERT INTO pedidos (
+         usuario_id, status, subtotal, desconto, total, cupom_codigo, entrega_cep, entrega_logradouro, entrega_numero,
+         entrega_bairro, entrega_cidade, entrega_uf, criado_em, atualizado_em
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+       RETURNING id`,
+      [
+        customerId, status, subtotalCents / 100, discountCents / 100, (subtotalCents - discountCents) / 100, coupon ? coupon.code : null,
+        city.zipCode, city.street, String(10 + Math.floor(random() * 990)), city.district, city.city, city.state, createdAt,
+      ],
+    );
+    for (const line of lines) {
+      await client.query(
+        "INSERT INTO itens_pedido (pedido_id, produto_id, tamanho, quantidade, preco_unitario) VALUES ($1, $2, $3, $4, $5)",
+        [rows[0].id, line.productId, line.size, line.quantity, line.unitPrice],
+      );
+    }
+  }
+}
+
 async function seed(client) {
   const categoryIds = {};
   for (const name of categories) {
@@ -125,12 +188,14 @@ async function seed(client) {
     );
   }
 
+  let customerId = null;
   for (const user of users) {
     const passwordHash = await bcrypt.hash(user.password, 10);
     const { rows } = await client.query(
       "INSERT INTO usuarios (nome, sobrenome, email, senha_hash, perfil) VALUES ($1, $2, $3, $4, $5) RETURNING id",
       [user.firstName, user.lastName, user.email, passwordHash, user.role],
     );
+    if (user.role === "customer") customerId = rows[0].id;
     if (user.address) {
       const { zipCode, street, number, complement, district, city, state } = user.address;
       await client.query(
@@ -144,6 +209,9 @@ async function seed(client) {
   for (const coupon of coupons) {
     await client.query("INSERT INTO cupons (codigo, percentual) VALUES ($1, $2)", [coupon.code, coupon.percent]);
   }
+
+  const { rows: productRows } = await client.query("SELECT id, preco FROM produtos ORDER BY id");
+  await seedOrders(client, customerId, productRows);
 }
 
 async function main() {
@@ -152,7 +220,7 @@ async function main() {
     await client.query(schema);
     await seed(client);
   });
-  console.log("Banco recriado: schema aplicado e dados iniciais inseridos.");
+  console.log("Banco recriado: schema aplicado, dados iniciais e histórico de pedidos inseridos.");
 }
 
 main()
