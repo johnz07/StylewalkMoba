@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import BoxIcon from "../assets/box.svg";
 import LogoutIcon from "../assets/log-out.svg";
 import PlusCircleIcon from "../assets/plus-circle.svg";
@@ -113,7 +113,7 @@ function AdminContent({ navigation }) {
     }
   }, [editingItemId, formValues, inventoryItems, resetForm, saveProduct]);
 
-  // Função para exportar os dados em JSON para o Dashboard (Etapa 5 / 2.2)[cite: 1]
+  // Função para exportar os dados em JSON para o Dashboard (item 2.2 do roteiro)
   const handleExportJson = async () => {
     try {
       setExportStatus("Gerando relatório JSON...");
@@ -130,10 +130,13 @@ function AdminContent({ navigation }) {
         URL.revokeObjectURL(url);
         setExportStatus("Relatório baixado com sucesso!");
       } else {
-        const fileUri = `${FileSystem.documentDirectory}stylewalk-relatorio.json`;
-        await FileSystem.writeAsStringAsync(fileUri, jsonString, { encoding: FileSystem.EncodingType.UTF8 });
+        // API de arquivos do SDK 57 (File/Paths): grava no cache e abre o menu de compartilhar.
+        const file = new File(Paths.cache, "stylewalk-relatorio.json");
+        if (file.exists) file.delete();
+        file.create();
+        await file.write(jsonString); // assíncrono a partir do SDK 58
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri);
+          await Sharing.shareAsync(file.uri, { mimeType: "application/json", UTI: "public.json" });
           setExportStatus("Relatório compartilhado com sucesso!");
         } else {
           setExportStatus("Compartilhamento indisponível neste dispositivo.");

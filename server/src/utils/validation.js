@@ -80,6 +80,36 @@ function validateProduct(data = {}) {
   return product;
 }
 
+const MAX_ITEM_QUANTITY = 99;
+
+// Pedido enviado pelo checkout: itens (produto, tamanho, quantidade), cupom opcional e endereço de entrega.
+// Preços não são aceitos do app: o service busca no banco.
+function validateOrder(data = {}) {
+  const items = Array.isArray(data.items) ? data.items : [];
+  if (items.length === 0) throw new HttpError(400, "Carrinho vazio.");
+
+  const order = {
+    items: items.map((item) => ({
+      productId: Number(item?.productId),
+      size: Number(item?.size),
+      quantity: Number(item?.quantity),
+    })),
+    couponCode: text(data.couponCode) || null,
+    address: normalizeAddress(data.address),
+  };
+
+  const validItems = order.items.every(
+    (item) => Number.isInteger(item.productId) && item.productId > 0
+      && Number.isInteger(item.size) && item.size > 0
+      && Number.isInteger(item.quantity) && item.quantity > 0 && item.quantity <= MAX_ITEM_QUANTITY,
+  );
+  if (!validItems) throw new HttpError(400, "Itens do carrinho inválidos.");
+
+  const { zipCode, street, number, city } = order.address;
+  if (!zipCode || !street || !number || !city) throw new HttpError(400, "Preencha CEP, endereço, número e cidade.");
+  return order;
+}
+
 // IDs de rota: inteiros positivos; qualquer outra coisa é tratada como "não encontrado".
 function parseId(value, notFoundMessage) {
   const id = Number(value);
@@ -87,4 +117,4 @@ function parseId(value, notFoundMessage) {
   return id;
 }
 
-module.exports = { isValidEmail, parseBirthDate, validateRegistration, validateProduct, parseId, MIN_PASSWORD_LENGTH, BADGES };
+module.exports = { isValidEmail, parseBirthDate, validateRegistration, validateProduct, validateOrder, parseId, MIN_PASSWORD_LENGTH, BADGES };

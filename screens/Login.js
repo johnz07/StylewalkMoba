@@ -18,6 +18,7 @@ export default function Login({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
   const redirectTo = route.params?.redirectTo;
+  const redirectParams = route.params?.redirectParams;
   const [errorMessage, setErrorMessage] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +41,7 @@ export default function Login({ navigation, route }) {
     setIsSubmitting(true);
     try {
       const loggedUser = await login(cleanUsername, cleanPassword);
-      finishAuth(navigation, loggedUser, redirectTo);
+      finishAuth(navigation, loggedUser, redirectTo, redirectParams);
     } catch (error) {
       setErrorMessage(error.message);
       setIsSubmitting(false);
@@ -48,7 +49,7 @@ export default function Login({ navigation, route }) {
   };
 
   const handleGoToCadastro = () => {
-    navigation.navigate("Cadastro", { redirectTo });
+    navigation.navigate("Cadastro", { redirectTo, redirectParams });
   };
 
   const handleBack = () => {

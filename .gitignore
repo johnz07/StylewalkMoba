@@ -43,3 +43,8 @@ yarn-error.*
 
 # env files (segredos e IP local)
 .env
+
+# Testes
+test-results/
+playwright-report/
+coverage/

@@ -29,6 +29,7 @@ function PasswordAccessory({ isVisible, onPress }) {
 export default function Cadastro({ navigation, route }) {
   const { register } = useAuth();
   const redirectTo = route.params?.redirectTo;
+  const redirectParams = route.params?.redirectParams;
   const [errorMessage, setErrorMessage] = useState("");
   const [formValues, setFormValues] = useState({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -126,7 +127,7 @@ export default function Cadastro({ navigation, route }) {
           state: value("state"),
         },
       });
-      finishAuth(navigation, newUser, redirectTo);
+      finishAuth(navigation, newUser, redirectTo, redirectParams);
     } catch (error) {
       setErrorMessage(error.message);
       setIsSubmitting(false);
@@ -139,7 +140,7 @@ export default function Cadastro({ navigation, route }) {
     if (routes[routes.length - 2]?.name === "Login") {
       navigation.goBack();
     } else {
-      navigation.navigate("Login", { redirectTo });
+      navigation.navigate("Login", { redirectTo, redirectParams });
     }
   };
 
